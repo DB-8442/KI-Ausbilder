@@ -29,7 +29,7 @@ nav button{background:transparent;flex:1;max-width:180px;font-size:12px}.screen{
 </head>
 <body>
 <div class="app">
-<header><h1>🚂 KI-Ausbilder</h1><div class="sub">Praktische Ausbildung · BR 8442 · Version 4</div></header>
+<header><h1>🚂 KI-Ausbilder</h1><div class="sub">Praktische Ausbildung · BR 8442 · Version 5.1</div></header>
 
 <main>
 <section id="home" class="screen active">
@@ -212,10 +212,10 @@ async function loadTfPlan(){
  }catch(e){console.error(e);$("tfStatus").textContent="⚠️ Zuglauf konnte nicht geladen werden."}
 }
 function openDisruptions(){
- window.open("https://www.strecken.info/","_blank","noopener");
+ window.location.href="https://www.strecken.info/";
 }
 function openRailMap(){
- window.open("https://www.openrailwaymap.org/","_blank","noopener");
+ window.location.href="https://www.openrailwaymap.org/";
 }
 function saveTfRide(){
  const d={id:crypto.randomUUID(),date:$("tfDate").value,train:$("tfTrain").value,vehicle:$("tfVehicle").value,route:$("tfRoute").value,notes:$("tfNotes").value,createdAt:new Date().toISOString()};
