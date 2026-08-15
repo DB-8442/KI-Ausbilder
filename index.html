@@ -29,7 +29,7 @@ nav button{background:transparent;flex:1;max-width:180px;font-size:12px}.screen{
 </head>
 <body>
 <div class="app">
-<header><h1>🚂 KI-Ausbilder</h1><div class="sub">Praktische Ausbildung · BR 8442 · Version 2</div></header>
+<header><h1>🚂 KI-Ausbilder</h1><div class="sub">Praktische Ausbildung · BR 8442 · Version 4</div></header>
 
 <main>
 <section id="home" class="screen active">
@@ -43,6 +43,7 @@ nav button{background:transparent;flex:1;max-width:180px;font-size:12px}.screen{
 <label>Azubi<input id="trainee" placeholder="Kürzel / Name"></label>
 <label>Zugnummer<input id="train" placeholder="z. B. RE 12345"></label>
 <label>Fahrzeug<input id="vehicle" value="BR 8442"></label>
+<div class="full actions"><button class="secondary" onclick="loadTrainPlan()">🚆 Zuglauf automatisch laden</button><span id="trainStatus" class="muted"></span></div>
 <label>Ausbildungsstand<select id="level"><option>Anfänger</option><option>Grundausbildung</option><option>Fortgeschritten</option><option>Prüfungsvorbereitung</option></select></label>
 <label>Strecke<input id="route" placeholder="wird später automatisch ergänzt"></label>
 </div></div>
@@ -84,7 +85,7 @@ let current=null;
 const $=id=>document.getElementById(id);
 function show(id){document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));$(id).classList.add("active");window.scrollTo(0,0);if(id==="home")renderRecent();}
 function today(){return new Date().toISOString().slice(0,10)}
-function newRide(){current=null; $("date").value=today();["trainee","train","route","general"].forEach(x=>$(x).value="");$("vehicle").value="BR 8442";$("level").value="Anfänger";$("stops").innerHTML="";buildSkills();addStop();show("ride")}
+function newRide(){current=null; $("date").value=today();["trainee","train","route","general"].forEach(x=>$(x).value="");$("vehicle").value="BR 8442";$("level").value="Anfänger";$("stops").innerHTML="";$("trainStatus").textContent="";buildSkills();addStop();show("ride")}
 function buildSkills(data={}){
 $("skills").innerHTML="";
 skillNames.forEach((n,i)=>{let val=data[n]?.level||"—",note=data[n]?.note||"";let div=document.createElement("div");div.className="skill";div.innerHTML=`<div class="skilltop"><strong>${n}</strong><span id="sv${i}">${val}</span></div><div class="rate">${levels.map(l=>`<button class="${l===val?'sel':''}" onclick="setSkill(${i},'${esc(l)}',this)">${l}</button>`).join("")}</div><textarea id="sn${i}" placeholder="Kurze Bemerkung ...">${esc(note)}</textarea>`;$("skills").appendChild(div);});
@@ -99,6 +100,54 @@ function collect(){
 let skills={};skillNames.forEach((n,i)=>{let l=$("sv"+i).textContent,note=$("sn"+i).value;if(l!=="—"||note)skills[n]={level:l,note}});
 let stops=[...document.querySelectorAll(".stop")].map(x=>({name:x.querySelector(".sn").value,pa:x.querySelector(".pa").value,ra:x.querySelector(".ra").value,pd:x.querySelector(".pd").value,rd:x.querySelector(".rd").value,note:x.querySelector(".note").value})).filter(x=>x.name||x.note);
 return {id:current?.id||crypto.randomUUID(),date:$("date").value,trainee:$("trainee").value,train:$("train").value,vehicle:$("vehicle").value,level:$("level").value,route:$("route").value,general:$("general").value,skills,stops};
+}
+
+async function apiGet(path){
+ const u="https://api.mobidata-bw.de/gtfs/"+path;
+ const r=await fetch(u,{headers:{"Accept":"application/json"}});
+ if(!r.ok)throw new Error("HTTP "+r.status);
+ return await r.json();
+}
+async function loadTrainPlan(){
+ const train=$("train").value.trim();
+ if(!train){alert("Bitte zuerst eine Zugnummer eingeben.");return}
+ $("trainStatus").textContent="⏳ Suche Zuglauf …";
+ try{
+   const trips=await apiGet("trips?trip_short_name=eq."+encodeURIComponent(train)+"&limit=20");
+   if(!Array.isArray(trips)||!trips.length){
+      $("trainStatus").textContent="⚠️ Keine passende Fahrt gefunden.";
+      return;
+   }
+   const trip=trips[0];
+   const times=await apiGet("stop_times?trip_id=eq."+encodeURIComponent(trip.trip_id)+"&order=stop_sequence.asc");
+   if(!Array.isArray(times)||!times.length)throw new Error("Keine Haltezeiten gefunden");
+   const ids=[...new Set(times.map(x=>x.stop_id).filter(Boolean))];
+   let stops=[];
+   for(let i=0;i<ids.length;i+=40){
+     const batch=ids.slice(i,i+40);
+     const q=batch.map(x=>encodeURIComponent(x)).join(",");
+     const part=await apiGet("stops?stop_id=in.("+q+")&limit=100");
+     stops=stops.concat(part);
+   }
+   const byId=Object.fromEntries(stops.map(s=>[s.stop_id,s]));
+   $("stops").innerHTML="";
+   times.forEach(t=>{
+      const s=byId[t.stop_id]||{};
+      addStop({name:s.stop_name||t.stop_headsign||t.stop_id,pa:toTime(t.arrival_time),pd:toTime(t.departure_time)});
+   });
+   const head=trip.trip_headsign||"";
+   if(!$("route").value && head)$("route").value=head;
+   $("trainStatus").textContent=`✅ ${times.length} Haltepunkte geladen · ${head||"Zuglauf"}`;
+ }catch(e){
+   console.error(e);
+   $("trainStatus").textContent="⚠️ Fahrplandaten konnten nicht geladen werden.";
+   alert("Der automatische Zuglauf konnte gerade nicht geladen werden. Die manuellen Felder bleiben verfügbar.");
+ }
+}
+function toTime(v){
+ if(!v)return "";
+ const m=String(v).match(/(\d+):(\d+):/);if(!m)return "";
+ return String(Number(m[1])%24).padStart(2,"0")+":"+m[2];
 }
 function saveRide(){let d=collect(),arr=JSON.parse(localStorage.getItem("rides")||"[]");let i=arr.findIndex(x=>x.id===d.id);if(i>=0)arr[i]=d;else arr.unshift(d);localStorage.setItem("rides",JSON.stringify(arr));current=d;alert("Fahrt gespeichert.");renderRecent()}
 function finishRide(){saveRide();let d=current;let rows=Object.entries(d.skills).map(([n,x])=>`<tr><td>${esc(n)}</td><td>${esc(x.level)}</td><td>${esc(x.note)}</td></tr>`).join("");let stops=d.stops.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.pa||"—"}</td><td>${x.ra||"—"}</td><td>${diff(x.pa,x.ra)}</td><td>${esc(x.note)}</td></tr>`).join("");$("protocol").innerHTML=`<h2>📋 Ausbildungsprotokoll</h2><p><b>Datum:</b> ${esc(d.date)}<br><b>Azubi:</b> ${esc(d.trainee)}<br><b>Zugnummer:</b> ${esc(d.train)}<br><b>Fahrzeug:</b> ${esc(d.vehicle)}<br><b>Ausbildungsstand:</b> ${esc(d.level)}<br><b>Strecke:</b> ${esc(d.route)}</p><h3>Bewertung</h3><table><tr><th>Bereich</th><th>Bewertung</th><th>Bemerkung</th></tr>${rows||"<tr><td colspan=3>Keine Beobachtungen.</td></tr>"}</table><h3>Haltepunkte</h3><table><tr><th>Halt</th><th>Plan</th><th>Ist</th><th>Abw.</th><th>Notiz</th></tr>${stops||"<tr><td colspan=5>Keine Haltepunkte.</td></tr>"}</table><h3>Freie Notizen</h3><p>${esc(d.general).replaceAll("\n","<br>")||"—"}</p><hr><p><b>Bewertungsgrundsatz:</b> Sicherheit → Pünktlichkeit → Energieeffizienz. Pünktlichkeit wird im betrieblichen Kontext betrachtet und darf niemals zulasten der Sicherheit gehen.</p>`;show("protocolScreen")}
