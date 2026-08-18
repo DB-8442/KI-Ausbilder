@@ -29,7 +29,7 @@ nav button{background:transparent;flex:1;max-width:180px;font-size:12px}.screen{
 </head>
 <body>
 <div class="app">
-<header><h1>🚂 KI-Ausbilder</h1><div class="sub">Praktische Ausbildung · BR 8442 · Version 5.4</div></header>
+<header><h1>🚂 KI-Ausbilder</h1><div class="sub">Praktische Ausbildung · BR 8442 · Version 5.4.1</div></header>
 
 <main>
 <section id="home" class="screen active">
@@ -258,11 +258,20 @@ function openRailMap(){
 }
 function saveTfRide(){
  const d={id:crypto.randomUUID(),date:$("tfDate").value,train:$("tfTrain").value,vehicle:$("tfVehicle").value,route:$("tfRoute").value,notes:$("tfNotes").value,createdAt:new Date().toISOString()};
- const a=JSON.parse(localStorage.getItem("tfRides")||"[]");a.unshift(d);localStorage.setItem("tfRides",JSON.stringify(a));
- renderTfHistory();renderTfRecent();alert("Tf-Fahrt lokal gespeichert.");
- $("tfDate").value=today();$("tfTrain").value="";$("tfVehicle").value="BR 8442";$("tfRoute").value="";$("tfNotes").value="";$("tfStops").innerHTML="";$("tfSummary").innerHTML="<p class='muted'>Zuglauf laden, um Halte und Sollzeiten zu sehen.</p>";$("tfStatus").textContent="";
-};
- const a=JSON.parse(localStorage.getItem("tfRides")||"[]");a.unshift(d);localStorage.setItem("tfRides",JSON.stringify(a));alert("Tf-Fahrt lokal gespeichert.");
+ const a=JSON.parse(localStorage.getItem("tfRides")||"[]");
+ a.unshift(d);
+ localStorage.setItem("tfRides",JSON.stringify(a));
+ renderTfHistory();
+ renderTfRecent();
+ alert("Tf-Fahrt lokal gespeichert.");
+ $("tfDate").value=today();
+ $("tfTrain").value="";
+ $("tfVehicle").value="BR 8442";
+ $("tfRoute").value="";
+ $("tfNotes").value="";
+ $("tfStops").innerHTML="";
+ $("tfSummary").innerHTML="<p class='muted'>Zuglauf laden, um Halte und Sollzeiten zu sehen.</p>";
+ $("tfStatus").textContent="";
 }
 function resetRideForm(){
  current=null;$("date").value=today();
