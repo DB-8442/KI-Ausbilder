@@ -29,7 +29,7 @@ nav button{background:transparent;flex:1;max-width:180px;font-size:12px}.screen{
 </head>
 <body>
 <div class="app">
-<header><h1>🚂 KI-Ausbilder</h1><div class="sub">Praktische Ausbildung · BR 8442 · Version 5.3</div></header>
+<header><h1>🚂 KI-Ausbilder</h1><div class="sub">Praktische Ausbildung · BR 8442 · Version 5.4</div></header>
 
 <main>
 <section id="home" class="screen active">
@@ -42,7 +42,8 @@ nav button{background:transparent;flex:1;max-width:180px;font-size:12px}.screen{
 <button class="secondary" onclick="newRide()">＋ Ausbildungsfahrt</button>
 </div>
 <div class="card"><h2>Letzte Fahrten</h2><p class="muted">Schnellerfassung für den praktischen Ausbildungsalltag.</p><button class="primary" onclick="newRide()">＋ Neue Fahrt</button></div>
-<div class="card"><h2>Letzte Fahrten</h2><div id="recent"></div></div>
+<div class="card"><h2>🚆 Meine Tf-Fahrten</h2><div id="tfRecent"></div></div>
+<div class="card"><h2>👨‍🏫 Letzte Ausbildungsfahrten</h2><div id="recent"></div></div>
 </section>
 
 
@@ -97,7 +98,10 @@ nav button{background:transparent;flex:1;max-width:180px;font-size:12px}.screen{
 <section id="protocolScreen" class="screen"><div class="card protocol" id="protocol"></div>
 <div class="actions no-print"><button class="primary" onclick="window.print()">🖨️ Drucken / PDF</button><button class="secondary" onclick="show('ride')">← Bearbeiten</button></div></section>
 
-<section id="history" class="screen"><div class="card"><h2>Ausbildungsverlauf</h2><div id="historyList"></div></div></section>
+<section id="history" class="screen">
+<div class="card"><h2>📊 Ausbildungsverlauf</h2><div id="historyList"></div></div>
+<div class="card"><h2>🚆 Meine Tf-Fahrten</h2><div id="tfHistoryList"></div></div>
+</section>
 
 <section id="settings" class="screen">
 <div class="card"><h2>⚙️ Einstellungen & Datenschutz</h2>
@@ -121,7 +125,7 @@ const skillNames=["Vorbereitung der Fahrt","Zugfertigmeldung beim Fahrdienstleit
 const levels=["—","🟢 sicher / selbstständig","🟡 mit Hinweis","🟠 Übungsbedarf","🔴 Eingriff erforderlich"];
 let current=null;
 const $=id=>document.getElementById(id);
-function show(id){document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));$(id).classList.add("active");window.scrollTo(0,0);if(id==="home")renderRecent();}
+function show(id){document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));$(id).classList.add("active");window.scrollTo(0,0);if(id==="home"){renderRecent();renderTfRecent()}}
 function today(){return new Date().toISOString().slice(0,10)}
 function newRide(){current=null; $("date").value=today();["trainee","train","route","general"].forEach(x=>$(x).value="");$("vehicle").value="BR 8442";$("level").value="Anfänger";$("stops").innerHTML="";$("trainStatus").textContent="";buildSkills();addStop();show("ride")}
 function buildSkills(data={}){
@@ -254,6 +258,10 @@ function openRailMap(){
 }
 function saveTfRide(){
  const d={id:crypto.randomUUID(),date:$("tfDate").value,train:$("tfTrain").value,vehicle:$("tfVehicle").value,route:$("tfRoute").value,notes:$("tfNotes").value,createdAt:new Date().toISOString()};
+ const a=JSON.parse(localStorage.getItem("tfRides")||"[]");a.unshift(d);localStorage.setItem("tfRides",JSON.stringify(a));
+ renderTfHistory();renderTfRecent();alert("Tf-Fahrt lokal gespeichert.");
+ $("tfDate").value=today();$("tfTrain").value="";$("tfVehicle").value="BR 8442";$("tfRoute").value="";$("tfNotes").value="";$("tfStops").innerHTML="";$("tfSummary").innerHTML="<p class='muted'>Zuglauf laden, um Halte und Sollzeiten zu sehen.</p>";$("tfStatus").textContent="";
+};
  const a=JSON.parse(localStorage.getItem("tfRides")||"[]");a.unshift(d);localStorage.setItem("tfRides",JSON.stringify(a));alert("Tf-Fahrt lokal gespeichert.");
 }
 function resetRideForm(){
@@ -270,7 +278,7 @@ function saveRide(resetAfter=true){
 function finishRide(){saveRide(false);let d=current;let rows=Object.entries(d.skills).map(([n,x])=>`<tr><td>${esc(n)}</td><td>${esc(x.level)}</td><td>${esc(x.note)}</td></tr>`).join("");let stops=d.stops.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.pa||"—"}</td><td>${x.ra||"—"}</td><td>${diff(x.pa,x.ra)}</td><td>${esc(x.note)}</td></tr>`).join("");$("protocol").innerHTML=`<h2>📋 Ausbildungsprotokoll</h2><p><b>Datum:</b> ${esc(d.date)}<br><b>Azubi:</b> ${esc(d.trainee)}<br><b>Zugnummer:</b> ${esc(d.train)}<br><b>Fahrzeug:</b> ${esc(d.vehicle)}<br><b>Ausbildungsstand:</b> ${esc(d.level)}<br><b>Strecke:</b> ${esc(d.route)}</p><h3>Bewertung</h3><table><tr><th>Bereich</th><th>Bewertung</th><th>Bemerkung</th></tr>${rows||"<tr><td colspan=3>Keine Beobachtungen.</td></tr>"}</table><h3>Haltepunkte</h3><table><tr><th>Halt</th><th>Plan</th><th>Ist</th><th>Abw.</th><th>Notiz</th></tr>${stops||"<tr><td colspan=5>Keine Haltepunkte.</td></tr>"}</table><h3>Freie Notizen</h3><p>${esc(d.general).replaceAll("\n","<br>")||"—"}</p><hr><p><b>Bewertungsgrundsatz:</b> Sicherheit → Pünktlichkeit → Energieeffizienz. Pünktlichkeit wird im betrieblichen Kontext betrachtet und darf niemals zulasten der Sicherheit gehen.</p>`;show("protocolScreen");resetRideForm()}
 function renderRecent(){let a=JSON.parse(localStorage.getItem("rides")||"[]");$("recent").innerHTML=a.slice(0,5).map(x=>`<div class="metric"><span><b>${esc(x.date)}</b> · ${esc(x.trainee||"ohne Azubi")}<br><span class="muted">${esc(x.train||"keine Zugnummer")} · ${esc(x.vehicle)}</span></span><button class="secondary" onclick='loadRide(${JSON.stringify(x.id)})'>Öffnen</button></div>`).join("")||"<p class='muted'>Noch keine Fahrten gespeichert.</p>"}
 function loadRide(id){let x=JSON.parse(localStorage.getItem("rides")||"[]").find(x=>x.id===id);if(!x)return;current=x;$("date").value=x.date;$("trainee").value=x.trainee;$("train").value=x.train;$("vehicle").value=x.vehicle;$("level").value=x.level;$("route").value=x.route;$("general").value=x.general;buildSkills(x.skills);$("stops").innerHTML="";x.stops.forEach(addStop);show("ride")}
-function renderHistory(){let a=JSON.parse(localStorage.getItem("rides")||"[]");$("historyList").innerHTML=a.map(x=>`<div class="metric"><span><b>${esc(x.trainee||"ohne Azubi")}</b><br>${esc(x.date)} · ${esc(x.train)} · ${esc(x.level)}</span><button class="secondary" onclick='loadRide(${JSON.stringify(x.id)})'>Öffnen</button></div>`).join("")||"<p class='muted'>Noch keine Daten.</p>"}
+function renderHistory(){renderTfHistory();let a=JSON.parse(localStorage.getItem("rides")||"[]");$("historyList").innerHTML=a.map(x=>`<div class="metric"><span><b>${esc(x.trainee||"ohne Azubi")}</b><br>${esc(x.date)} · ${esc(x.train)} · ${esc(x.level)}</span><button class="secondary" onclick='loadRide(${JSON.stringify(x.id)})'>Öffnen</button></div>`).join("")||"<p class='muted'>Noch keine Daten.</p>"}
 
 function getRides(){return JSON.parse(localStorage.getItem("rides")||"[]")}
 function setPin(){
@@ -305,7 +313,42 @@ function requirePin(){
  const entered=prompt("KI-Ausbilder ist gesperrt. Bitte PIN eingeben:");
  if(entered===p)return true;alert("Falsche PIN.");return false;
 }
-buildSkills();addStop();renderRecent();
+
+function getTfRides(){return JSON.parse(localStorage.getItem("tfRides")||"[]")}
+function renderTfRecent(){
+ const a=getTfRides();
+ const box=$("tfRecent"); if(!box)return;
+ box.innerHTML=a.slice(0,5).map(x=>`
+ <div class="metric">
+  <span><b>${esc(x.date||"")}</b> · ${esc(x.train||"keine Zugnummer")}<br>
+  <span class="muted">${esc(x.route||"ohne Laufweg")} · ${esc(x.vehicle||"")}</span></span>
+  <button class="secondary" onclick='loadTfRide(${JSON.stringify(x.id)})'>Öffnen</button>
+ </div>`).join("") || "<p class='muted'>Noch keine eigenen Fahrten gespeichert.</p>";
+}
+function renderTfHistory(){
+ const a=getTfRides(), box=$("tfHistoryList"); if(!box)return;
+ box.innerHTML=a.map(x=>`
+ <div class="metric">
+  <span><b>${esc(x.date||"")}</b> · ${esc(x.train||"keine Zugnummer")}<br>
+  <span class="muted">${esc(x.route||"ohne Laufweg")} · ${esc(x.vehicle||"")}</span></span>
+  <span class="actions">
+   <button class="secondary" onclick='loadTfRide(${JSON.stringify(x.id)})'>Öffnen</button>
+   <button class="danger" onclick='deleteTfRide(${JSON.stringify(x.id)})'>Löschen</button>
+  </span>
+ </div>`).join("") || "<p class='muted'>Noch keine eigenen Fahrten gespeichert.</p>";
+}
+function loadTfRide(id){
+ const x=getTfRides().find(r=>r.id===id); if(!x)return;
+ $("tfDate").value=x.date||today();$("tfTrain").value=x.train||"";$("tfVehicle").value=x.vehicle||"BR 8442";
+ $("tfRoute").value=x.route||"";$("tfNotes").value=x.notes||"";$("tfStatus").textContent="📋 Gespeicherte Fahrt geladen.";
+ show("tf");
+}
+function deleteTfRide(id){
+ if(!confirm("Diese eigene Fahrt wirklich löschen?"))return;
+ localStorage.setItem("tfRides",JSON.stringify(getTfRides().filter(r=>r.id!==id)));
+ renderTfHistory();renderTfRecent();
+}
+buildSkills();addStop();renderRecent();renderTfRecent();renderTfHistory();
 if("serviceWorker" in navigator){
  navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(reg=>{
    reg.update().catch(()=>{});
