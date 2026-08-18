@@ -29,7 +29,7 @@ nav button{background:transparent;flex:1;max-width:180px;font-size:12px}.screen{
 </head>
 <body>
 <div class="app">
-<header><h1>🚂 KI-Ausbilder</h1><div class="sub">Praktische Ausbildung · BR 8442 · Version 5.2</div></header>
+<header><h1>🚂 KI-Ausbilder</h1><div class="sub">Praktische Ausbildung · BR 8442 · Version 5.3</div></header>
 
 <main>
 <section id="home" class="screen active">
@@ -306,6 +306,11 @@ function requirePin(){
  if(entered===p)return true;alert("Falsche PIN.");return false;
 }
 buildSkills();addStop();renderRecent();
-if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+if("serviceWorker" in navigator){
+ navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(reg=>{
+   reg.update().catch(()=>{});
+   navigator.serviceWorker.addEventListener("controllerchange",()=>{});
+ }).catch(()=>{});
+}
 </script>
 </body></html>
