@@ -32,12 +32,12 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid 
 </head>
 <body>
 <div class="app">
-<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 6 · Zuglauf-Fix</div></div></div></header>
+<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 7 · Zuglauf-Fix</div></div></div></header>
 
 <main>
 <section id="home" class="screen active">
 <div class="card hero"><img src="lokassistent-logo.png" alt=""><div><h2>Willkommen bei LOKASSIST</h2><p>Sicher. Pünktlich. Entspannt.</p></div></div>
-<div class="section-title"><h2>Schnellzugriff</h2><span class="badge">1.0 Alpha 6 · Zuglauf-Fix</span></div>
+<div class="section-title"><h2>Schnellzugriff</h2><span class="badge">1.0 Alpha 7 · Zuglauf-Fix</span></div>
 <div class="tile-grid">
 <button class="tile accent" onclick="newTfRide()"><span class="icon">🚆</span><span><strong>Meine Fahrt</strong><br><small>Zuglauf, Fahrplan & persönliche Notizen</small></span></button>
 <button class="tile accent" onclick="newRide()"><span class="icon">👨‍🏫</span><span><strong>Ausbilder</strong><br><small>Ausbildungsfahrt & Protokoll</small></span></button>
@@ -177,70 +177,16 @@ async function apiGetRetry(path, tries=4){
  }
  throw last;
 }
-function gtfsDateParts(dateStr){
- const [y,m,d]=String(dateStr).split("-").map(Number);
- const dt=new Date(Date.UTC(y,m-1,d));
- return {y,m,d,weekday:dt.getUTCDay()};
-}
-function gtfsYmd(v){
- if(!v)return "";
- const s=String(v);
- if(/^\d{8}$/.test(s))return s.slice(0,4)+"-"+s.slice(4,6)+"-"+s.slice(6,8);
- return s.slice(0,10);
-}
-function gtfsCalendarActive(row,parts){
- if(!row)return false;
- const start=gtfsYmd(row.start_date),end=gtfsYmd(row.end_date);
- const target=`${String(parts.y).padStart(4,"0")}-${String(parts.m).padStart(2,"0")}-${String(parts.d).padStart(2,"0")}`;
- if(start&&target<start)return false;
- if(end&&target>end)return false;
- const keys=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
- return String(row[keys[parts.weekday]])==="1";
-}
 async function getActiveTripsForDate(trips,date){
- const parts=gtfsDateParts(date);
  const serviceIds=[...new Set(trips.map(t=>t.service_id).filter(Boolean))];
- const calendars={},exceptions={};
-
- // GTFS uses calendar + calendar_dates: regular weekly service plus explicit
- // additions/removals. This is more reliable than treating service_days as the
- // only source of truth.
- for(let i=0;i<serviceIds.length;i+=50){
-  const q=serviceIds.slice(i,i+50).map(x=>encodeURIComponent(x)).join(",");
-  try{
-   const rows=await apiGetRetry("calendar?service_id=in.("+q+")&limit=500");
-   for(const r of (Array.isArray(rows)?rows:[]))calendars[r.service_id]=r;
-  }catch(_){}
-  try{
-   const rows=await apiGetRetry("calendar_dates?date=eq."+encodeURIComponent(date)+"&service_id=in.("+q+")&limit=500");
-   for(const r of (Array.isArray(rows)?rows:[]))exceptions[r.service_id]=r;
-  }catch(_){}
- }
-
- // If calendar/calendar_dates are available, use them. If neither could be
- // read for a service, try the API's derived service_days endpoint as a
- // fallback instead of silently accepting unrelated trips.
- const fallbackIds=new Set();
  const activeIds=new Set();
- for(const id of serviceIds){
-  const cal=calendars[id], ex=exceptions[id];
-  if(ex){
-   if(String(ex.exception_type)==="1")activeIds.add(id);
-   continue;
-  }
-  if(cal){
-   if(gtfsCalendarActive(cal,parts))activeIds.add(id);
-   continue;
-  }
-  fallbackIds.add(id);
- }
 
- if(fallbackIds.size){
-  for(const id of fallbackIds){
-   try{
-    const rows=await apiGetRetry("service_days?trip_id=eq."+encodeURIComponent(trips.find(t=>t.service_id===id)?.trip_id||"")+"&date=eq."+encodeURIComponent(date)+"&limit=2");
-    if(Array.isArray(rows)&&rows.length)activeIds.add(id);
-   }catch(_){}
+ for(let i=0;i<serviceIds.length;i+=60){
+  const q=serviceIds.slice(i,i+60).map(x=>encodeURIComponent(x)).join(",");
+  const rows=await apiGetRetry("service_days?date=eq."+encodeURIComponent(date)+"&service_id=in.("+q+")&limit=1000");
+  if(!Array.isArray(rows))continue;
+  for(const row of rows){
+   if(row.service_id)activeIds.add(row.service_id);
   }
  }
  return trips.filter(t=>activeIds.has(t.service_id));
