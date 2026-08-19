@@ -32,12 +32,12 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid 
 </head>
 <body>
 <div class="app">
-<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 2 · Zuglauf-Fix</div></div></div></header>
+<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 3 · Zuglauf-Fix</div></div></div></header>
 
 <main>
 <section id="home" class="screen active">
 <div class="card hero"><img src="lokassistent-logo.png" alt=""><div><h2>Willkommen bei LOKASSIST</h2><p>Sicher. Pünktlich. Entspannt.</p></div></div>
-<div class="section-title"><h2>Schnellzugriff</h2><span class="badge">1.0 Alpha 2 · Zuglauf-Fix</span></div>
+<div class="section-title"><h2>Schnellzugriff</h2><span class="badge">1.0 Alpha 3 · Zuglauf-Fix</span></div>
 <div class="tile-grid">
 <button class="tile accent" onclick="newTfRide()"><span class="icon">🚆</span><span><strong>Meine Fahrt</strong><br><small>Zuglauf, Fahrplan & persönliche Notizen</small></span></button>
 <button class="tile accent" onclick="newRide()"><span class="icon">👨‍🏫</span><span><strong>Ausbilder</strong><br><small>Ausbildungsfahrt & Protokoll</small></span></button>
@@ -180,43 +180,84 @@ async function apiGetRetry(path, tries=4){
 async function findTripsForNumber(train,date){
  const clean=String(train||"").trim();
  if(!clean) return [];
- $("trainStatus") && ($("trainStatus").textContent="⏳ Suche passende Fahrt …");
- const trips=await apiGetRetry("trips?trip_short_name=eq."+encodeURIComponent(clean)+"&limit=100");
+ $("trainStatus") && ($("trainStatus").textContent="⏳ Suche Zugnummer …");
+ // 1) Nur einmal nach der Zugnummer suchen.
+ const trips=await apiGetRetry("trips?trip_short_name=eq."+encodeURIComponent(clean)+"&limit=200");
  if(!Array.isArray(trips)||!trips.length)return [];
- const candidates=[];
- for(const trip of trips.slice(0,30)){
-  let active=true;
-  try{
-   const days=await apiGetRetry("service_days?trip_id=eq."+encodeURIComponent(trip.trip_id)+"&date=eq."+encodeURIComponent(date)+"&limit=2");
-   if(Array.isArray(days)&&days.length===0)active=false;
-  }catch(_){}
-  if(!active)continue;
-  const times=await apiGetRetry("stop_times?trip_id=eq."+encodeURIComponent(trip.trip_id)+"&order=stop_sequence.asc");
-  if(!times?.length)continue;
-  let route=null;
-  if(trip.route_id)try{
-   route=(await apiGetRetry("routes?route_id=eq."+encodeURIComponent(trip.route_id)+"&limit=1"))?.[0]||null
-  }catch(_){}
-  const ids=[times[0].stop_id,times.at(-1).stop_id].filter(Boolean);
-  let ss=[];
-  if(ids.length){
-   const q=ids.map(x=>encodeURIComponent(x)).join(",");
-   try{ss=await apiGetRetry("stops?stop_id=in.("+q+")&limit=10")}catch(_){}
+
+ // 2) Nur Fahrten berücksichtigen, die am gewählten Datum aktiv sind.
+ const tripIds=[...new Set(trips.map(t=>t.trip_id).filter(Boolean))];
+ let activeIds=null;
+ try{
+  const q=tripIds.map(x=>encodeURIComponent(x)).join(",");
+  const days=await apiGetRetry("service_days?date=eq."+encodeURIComponent(date)+"&trip_id=in.("+q+")&limit=1000");
+  if(Array.isArray(days)&&days.length) activeIds=new Set(days.map(d=>d.trip_id).filter(Boolean));
+ }catch(_){
+  // Falls service_days nicht verfügbar ist, lieber die Zugnummernsuche nicht blockieren.
+ }
+ const active=activeIds ? trips.filter(t=>activeIds.has(t.trip_id)) : trips;
+
+ if(!active.length)return [];
+
+ // 3) Alle stop_times in EINEM/ wenigen Requests laden statt je Fahrt einzeln.
+ const timesByTrip=new Map();
+ for(let i=0;i<active.length;i+=40){
+  const ids=active.slice(i,i+40).map(t=>t.trip_id);
+  const q=ids.map(x=>encodeURIComponent(x)).join(",");
+  const times=await apiGetRetry("stop_times?trip_id=in.("+q+")&order=trip_id.asc,stop_sequence.asc&limit=10000");
+  for(const t of (Array.isArray(times)?times:[])){
+   if(!timesByTrip.has(t.trip_id))timesByTrip.set(t.trip_id,[]);
+   timesByTrip.get(t.trip_id).push(t);
   }
-  const names=Object.fromEntries(ss.map(s=>[s.stop_id,s.stop_name]));
+ }
+
+ // 4) Stop-Namen gesammelt laden.
+ const stopIds=[...new Set([...timesByTrip.values()].flat().map(t=>t.stop_id).filter(Boolean))];
+ const stopsById={};
+ for(let i=0;i<stopIds.length;i+=80){
+  const q=stopIds.slice(i,i+80).map(x=>encodeURIComponent(x)).join(",");
+  const ss=await apiGetRetry("stops?stop_id=in.("+q+")&limit=500");
+  for(const s of (Array.isArray(ss)?ss:[]))stopsById[s.stop_id]=s;
+ }
+
+ // 5) Routen gesammelt laden.
+ const routeIds=[...new Set(active.map(t=>t.route_id).filter(Boolean))];
+ const routesById={};
+ for(let i=0;i<routeIds.length;i+=80){
+  const q=routeIds.slice(i,i+80).map(x=>encodeURIComponent(x)).join(",");
+  const rs=await apiGetRetry("routes?route_id=in.("+q+")&limit=500");
+  for(const r of (Array.isArray(rs)?rs:[]))routesById[r.route_id]=r;
+ }
+
+ // 6) Kandidaten bilden und echte Dubletten entfernen.
+ const candidates=[];
+ const seen=new Set();
+ for(const trip of active){
+  const times=(timesByTrip.get(trip.trip_id)||[]).sort((a,b)=>(a.stop_sequence??0)-(b.stop_sequence??0));
+  if(!times.length)continue;
+  const firstStop=stopsById[times[0].stop_id];
+  const lastStop=stopsById[times.at(-1).stop_id];
+  const route=routesById[trip.route_id];
+  const first=firstStop?.stop_name||times[0].stop_id;
+  const last=lastStop?.stop_name||times.at(-1).stop_id;
+  const departure=toTime(times[0].departure_time);
+  const arrival=toTime(times.at(-1).arrival_time);
+  // Gleiche Zugnummer + gleicher Laufweg + gleiche Zeiten = gleiche Auswahl.
+  const signature=[first,last,departure,arrival,trip.trip_headsign||"",route?.route_short_name||route?.route_long_name||""].join("|");
+  if(seen.has(signature))continue;
+  seen.add(signature);
   candidates.push({
    trip_id:trip.trip_id,
    trip_headsign:trip.trip_headsign||"",
    route_name:route?.route_long_name||route?.route_short_name||"",
    agency_id:route?.agency_id||"",
-   first:names[times[0].stop_id]||times[0].stop_id,
-   last:names[times.at(-1).stop_id]||times.at(-1).stop_id,
-   departure:toTime(times[0].departure_time),
-   arrival:toTime(times.at(-1).arrival_time)
+   first,last,departure,arrival
   });
  }
+ candidates.sort((a,b)=>(a.departure||"").localeCompare(b.departure||"")||(a.first||"").localeCompare(b.first||""));
  return candidates;
 }
+
 async function loadTrainPlan(){
  const train=$("train").value.trim(),date=$("date").value||today();
  if(!train){alert("Bitte zuerst eine Zugnummer eingeben.");return}
@@ -241,7 +282,8 @@ async function loadTrainPlan(){
  }
 }
 function showTripChooser(candidates){
- $("tripChoices").innerHTML=candidates.map(c=>`<button class="choice" onclick='chooseTrip(${JSON.stringify(c).replaceAll("'","&#39;")})'><strong>${esc(c.first)} → ${esc(c.last)}</strong><small>${esc(c.departure||"—")} → ${esc(c.arrival||"—")} · ${esc(c.route_name||"Fahrt")}</small></button>`).join("");
+ const list=candidates.slice(0,20);
+ $("tripChoices").innerHTML=list.map(c=>`<button class="choice" onclick='chooseTrip(${JSON.stringify(c).replaceAll("'","&#39;")})'><strong>${esc(c.first)} → ${esc(c.last)}</strong><small>${esc(c.departure||"—")} → ${esc(c.arrival||"—")} · ${esc(c.route_name||"Fahrt")}</small></button>`).join("");
  $("tripChooser").style.display="block";
 }
 function closeTripChooser(){$("tripChooser").style.display="none"}

@@ -1,4 +1,4 @@
-const VERSION="1.0-alpha-2";
+const VERSION="1.0-alpha-3";
 const CACHE_NAME=`lokassistent-${VERSION}`;
 const ASSETS=["./","./index.html","./manifest.webmanifest","./sw.js","./lokassistent-logo.png","./apple-touch-icon-180.png","./lokassistent-icon-512.png"];
 self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(ASSETS)))});
