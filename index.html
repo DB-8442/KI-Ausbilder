@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#111827"><link rel="manifest" href="manifest.webmanifest">
-<title>KI-Ausbilder</title>
+<title>LOKASSIST</title>
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;color:#111827;background:#f3f4f6}
 *{box-sizing:border-box}body{margin:0;padding-bottom:82px}.app{max-width:720px;margin:auto}
@@ -29,7 +29,7 @@ nav button{background:transparent;flex:1;max-width:180px;font-size:12px}.screen{
 </head>
 <body>
 <div class="app">
-<header><h1>🚂 KI-Ausbilder</h1><div class="sub">Praktische Ausbildung · BR 8442 · Version 5.4.1</div></header>
+<header><h1>🚂 LOKASSIST</h1><div class="sub">Praktische Ausbildung · BR 8442 · LOKASSIST 0.x</div></header>
 
 <main>
 <section id="home" class="screen active">
@@ -120,7 +120,7 @@ nav button{background:transparent;flex:1;max-width:180px;font-size:12px}.screen{
 </div>
 
 <script>
-if(!requirePin()) document.body.innerHTML='<div style="padding:30px;font-family:sans-serif"><h2>🔒 KI-Ausbilder gesperrt</h2><p>Bitte Seite neu laden und die richtige PIN eingeben.</p></div>';
+if(!requirePin()) document.body.innerHTML='<div style="padding:30px;font-family:sans-serif"><h2>🔒 LOKASSIST gesperrt</h2><p>Bitte Seite neu laden und die richtige PIN eingeben.</p></div>';
 const skillNames=["Vorbereitung der Fahrt","Zugfertigmeldung beim Fahrdienstleiter","Vorausschauendes Fahren","Anfahren & Beschleunigen","Bremsverhalten","Haltegenauigkeit","Fahrplan / La","Streckenbeobachtung","Führerpult- & Anzeigenbeobachtung","Signalbeobachtung","Signalansage","PZB","Sifa","Weitere Sicherheitseinrichtungen","Kommunikation / Funk","Rangieren","Störungen / Abweichungen","Abschluss der Fahrt","Energieeffiziente Fahrweise"];
 const levels=["—","🟢 sicher / selbstständig","🟡 mit Hinweis","🟠 Übungsbedarf","🔴 Eingriff erforderlich"];
 let current=null;
@@ -319,7 +319,7 @@ function deleteAll(){
 }
 function requirePin(){
  const p=localStorage.getItem("appPin");if(!p)return true;
- const entered=prompt("KI-Ausbilder ist gesperrt. Bitte PIN eingeben:");
+ const entered=prompt("LOKASSIST ist gesperrt. Bitte PIN eingeben:");
  if(entered===p)return true;alert("Falsche PIN.");return false;
 }
 
