@@ -32,12 +32,12 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid 
 </head>
 <body>
 <div class="app">
-<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 1 · Icon Fix</div></div></div></header>
+<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 2 · Zuglauf-Fix</div></div></div></header>
 
 <main>
 <section id="home" class="screen active">
 <div class="card hero"><img src="lokassistent-logo.png" alt=""><div><h2>Willkommen bei LOKASSIST</h2><p>Sicher. Pünktlich. Entspannt.</p></div></div>
-<div class="section-title"><h2>Schnellzugriff</h2><span class="badge">1.0 Alpha 1 · Icon Fix</span></div>
+<div class="section-title"><h2>Schnellzugriff</h2><span class="badge">1.0 Alpha 2 · Zuglauf-Fix</span></div>
 <div class="tile-grid">
 <button class="tile accent" onclick="newTfRide()"><span class="icon">🚆</span><span><strong>Meine Fahrt</strong><br><small>Zuglauf, Fahrplan & persönliche Notizen</small></span></button>
 <button class="tile accent" onclick="newRide()"><span class="icon">👨‍🏫</span><span><strong>Ausbilder</strong><br><small>Ausbildungsfahrt & Protokoll</small></span></button>
@@ -54,6 +54,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid 
 </section>
 
 
+<div id="tfTripChooser" style="display:none;position:fixed;inset:0;background:#0007;z-index:20;padding:20px;overflow:auto"><div class="card" style="max-width:680px;margin:30px auto"><h2>🚆 Fahrt auswählen</h2><p class="muted">Mehrere passende Fahrten gefunden. Bitte die richtige auswählen.</p><div id="tfTripChoices"></div><button class="secondary" onclick="closeTfTripChooser()">Abbrechen</button></div></div>
 <div id="tripChooser" style="display:none;position:fixed;inset:0;background:#0008;z-index:30;padding:18px;overflow:auto">
 <div class="card" style="max-width:680px;margin:30px auto">
 <h2>🚆 Fahrt auswählen</h2><p class="muted">Mehrere passende Fahrten gefunden. Bitte die richtige auswählen.</p>
@@ -176,36 +177,68 @@ async function apiGetRetry(path, tries=4){
  }
  throw last;
 }
+async function findTripsForNumber(train,date){
+ const clean=String(train||"").trim();
+ if(!clean) return [];
+ $("trainStatus") && ($("trainStatus").textContent="⏳ Suche passende Fahrt …");
+ const trips=await apiGetRetry("trips?trip_short_name=eq."+encodeURIComponent(clean)+"&limit=100");
+ if(!Array.isArray(trips)||!trips.length)return [];
+ const candidates=[];
+ for(const trip of trips.slice(0,30)){
+  let active=true;
+  try{
+   const days=await apiGetRetry("service_days?trip_id=eq."+encodeURIComponent(trip.trip_id)+"&date=eq."+encodeURIComponent(date)+"&limit=2");
+   if(Array.isArray(days)&&days.length===0)active=false;
+  }catch(_){}
+  if(!active)continue;
+  const times=await apiGetRetry("stop_times?trip_id=eq."+encodeURIComponent(trip.trip_id)+"&order=stop_sequence.asc");
+  if(!times?.length)continue;
+  let route=null;
+  if(trip.route_id)try{
+   route=(await apiGetRetry("routes?route_id=eq."+encodeURIComponent(trip.route_id)+"&limit=1"))?.[0]||null
+  }catch(_){}
+  const ids=[times[0].stop_id,times.at(-1).stop_id].filter(Boolean);
+  let ss=[];
+  if(ids.length){
+   const q=ids.map(x=>encodeURIComponent(x)).join(",");
+   try{ss=await apiGetRetry("stops?stop_id=in.("+q+")&limit=10")}catch(_){}
+  }
+  const names=Object.fromEntries(ss.map(s=>[s.stop_id,s.stop_name]));
+  candidates.push({
+   trip_id:trip.trip_id,
+   trip_headsign:trip.trip_headsign||"",
+   route_name:route?.route_long_name||route?.route_short_name||"",
+   agency_id:route?.agency_id||"",
+   first:names[times[0].stop_id]||times[0].stop_id,
+   last:names[times.at(-1).stop_id]||times.at(-1).stop_id,
+   departure:toTime(times[0].departure_time),
+   arrival:toTime(times.at(-1).arrival_time)
+  });
+ }
+ return candidates;
+}
 async function loadTrainPlan(){
  const train=$("train").value.trim(),date=$("date").value||today();
  if(!train){alert("Bitte zuerst eine Zugnummer eingeben.");return}
- $("trainStatus").textContent="⏳ Suche passende Fahrt …";
  try{
-  const cacheKey="tripSel:"+date+":"+train, cached=localStorage.getItem(cacheKey);
-  if(cached){await useSelectedTrip(JSON.parse(cached));return}
-  const trips=await apiGetRetry("trips?trip_short_name=eq."+encodeURIComponent(train)+"&limit=100");
-  if(!trips?.length){$("trainStatus").textContent="⚠️ Keine passende Fahrt gefunden.";return}
-  const candidates=[];
-  for(const trip of trips.slice(0,30)){
-   let active=true;
+  const key="tripSel:"+date+":"+train;
+  const cached=localStorage.getItem(key);
+  if(cached){
    try{
-    const days=await apiGetRetry("service_days?trip_id=eq."+encodeURIComponent(trip.trip_id)+"&date=eq."+encodeURIComponent(date)+"&limit=2");
-    if(Array.isArray(days)&&days.length===0)active=false;
-   }catch(_){}
-   if(!active)continue;
-   const times=await apiGetRetry("stop_times?trip_id=eq."+encodeURIComponent(trip.trip_id)+"&order=stop_sequence.asc");
-   if(!times?.length)continue;
-   let route=null;
-   if(trip.route_id)try{route=(await apiGetRetry("routes?route_id=eq."+encodeURIComponent(trip.route_id)+"&limit=1"))?.[0]||null}catch(_){}
-   const ids=[times[0].stop_id,times.at(-1).stop_id].filter(Boolean),q=ids.map(x=>encodeURIComponent(x)).join(",");
-   let ss=[];try{ss=await apiGetRetry("stops?stop_id=in.("+q+")&limit=10")}catch(_){}
-   const names=Object.fromEntries(ss.map(s=>[s.stop_id,s.stop_name]));
-   candidates.push({trip_id:trip.trip_id,trip_headsign:trip.trip_headsign||"",route_name:route?.route_long_name||route?.route_short_name||"",agency_id:route?.agency_id||"",first:names[times[0].stop_id]||times[0].stop_id,last:names[times.at(-1).stop_id]||times.at(-1).stop_id,departure:toTime(times[0].departure_time),arrival:toTime(times.at(-1).arrival_time)});
+    const c=JSON.parse(cached);
+    await useSelectedTrip(c);
+    return;
+   }catch(_){localStorage.removeItem(key)}
   }
+  const candidates=await findTripsForNumber(train,date);
   if(!candidates.length){$("trainStatus").textContent="⚠️ Für dieses Datum wurde keine passende Fahrt gefunden.";return}
   if(candidates.length===1)await useSelectedTrip(candidates[0]);
   else{showTripChooser(candidates);$("trainStatus").textContent=`⚠️ ${candidates.length} passende Fahrten gefunden – bitte auswählen.`}
- }catch(e){console.error(e);$("trainStatus").textContent="⚠️ Fahrplandaten konnten nicht geladen werden.";alert("Der Zuglauf konnte gerade nicht geladen werden. Bitte erneut versuchen.")}
+ }catch(e){
+  console.error(e);
+  $("trainStatus").textContent="⚠️ Fahrplandaten konnten nicht geladen werden.";
+  alert("Der Zuglauf konnte gerade nicht geladen werden. Bitte erneut versuchen.");
+ }
 }
 function showTripChooser(candidates){
  $("tripChoices").innerHTML=candidates.map(c=>`<button class="choice" onclick='chooseTrip(${JSON.stringify(c).replaceAll("'","&#39;")})'><strong>${esc(c.first)} → ${esc(c.last)}</strong><small>${esc(c.departure||"—")} → ${esc(c.arrival||"—")} · ${esc(c.route_name||"Fahrt")}</small></button>`).join("");
@@ -221,14 +254,24 @@ async function useSelectedTrip(c){
  $("trainStatus").textContent="⏳ Lade ausgewählten Zuglauf …";
  try{
   const times=await apiGetRetry("stop_times?trip_id=eq."+encodeURIComponent(c.trip_id)+"&order=stop_sequence.asc");
+  if(!times?.length)throw new Error("Keine Halte gefunden");
   const ids=[...new Set(times.map(x=>x.stop_id).filter(Boolean))];let stops=[];
-  for(let i=0;i<ids.length;i+=40){const q=ids.slice(i,i+40).map(x=>encodeURIComponent(x)).join(",");stops=stops.concat(await apiGetRetry("stops?stop_id=in.("+q+")&limit=100"))}
-  const byId=Object.fromEntries(stops.map(s=>[s.stop_id,s]));$("stops").innerHTML="";
+  for(let i=0;i<ids.length;i+=40){
+   const q=ids.slice(i,i+40).map(x=>encodeURIComponent(x)).join(",");
+   stops=stops.concat(await apiGetRetry("stops?stop_id=in.("+q+")&limit=100"));
+  }
+  const byId=Object.fromEntries(stops.map(s=>[s.stop_id,s]));
+  $("stops").innerHTML="";
   times.forEach(t=>addStop({name:byId[t.stop_id]?.stop_name||t.stop_headsign||t.stop_id,pa:toTime(t.arrival_time),pd:toTime(t.departure_time)}));
   if(!$("route").value&&c.trip_headsign)$("route").value=c.trip_headsign;
   $("trainStatus").textContent=`✅ ${times.length} Haltepunkte geladen · ${esc(c.first)} → ${esc(c.last)}`;
- }catch(e){console.error(e);$("trainStatus").textContent="⚠️ Zuglauf konnte nicht geladen werden.";alert("Die ausgewählte Fahrt konnte nicht vollständig geladen werden.")}
+ }catch(e){
+  console.error(e);
+  $("trainStatus").textContent="⚠️ Zuglauf konnte nicht geladen werden.";
+  alert("Die ausgewählte Fahrt konnte nicht vollständig geladen werden.");
+ }
 }
+
 
 function toTime(v){
  if(!v)return "";
@@ -243,30 +286,68 @@ function newTfRide(){
  show("tf");
 }
 async function loadTfPlan(){
- const train=$("tfTrain").value.trim(); if(!train){alert("Bitte Zugnummer eingeben.");return}
- $("tfStatus").textContent="⏳ Lade Zuglauf …";
+ const train=$("tfTrain").value.trim(),date=$("tfDate").value||today();
+ if(!train){alert("Bitte Zugnummer eingeben.");return}
+ $("tfStatus").textContent="⏳ Suche passende Fahrt …";
  try{
-  const trips=await apiGet("trips?trip_short_name=eq."+encodeURIComponent(train)+"&limit=20");
-  if(!Array.isArray(trips)||!trips.length){$("tfStatus").textContent="⚠️ Keine passende Fahrt gefunden.";return}
-  const trip=trips[0], times=await apiGet("stop_times?trip_id=eq."+encodeURIComponent(trip.trip_id)+"&order=stop_sequence.asc");
+  const key="tfTripSel:"+date+":"+train;
+  const cached=localStorage.getItem(key);
+  if(cached){
+   try{await useSelectedTfTrip(JSON.parse(cached));return}catch(_){localStorage.removeItem(key)}
+  }
+  const candidates=await findTripsForNumber(train,date);
+  if(!candidates.length){
+   $("tfStatus").textContent="⚠️ Für dieses Datum wurde keine passende Fahrt gefunden.";
+   return;
+  }
+  if(candidates.length===1){
+   await useSelectedTfTrip(candidates[0]);
+  }else{
+   $("tfTripChoices").innerHTML=candidates.map(c=>`<button class="choice" onclick='chooseTfTrip(${JSON.stringify(c).replaceAll("'","&#39;")})'><strong>${esc(c.first)} → ${esc(c.last)}</strong><small>${esc(c.departure||"—")} → ${esc(c.arrival||"—")} · ${esc(c.route_name||"Fahrt")}</small></button>`).join("");
+   $("tfTripChooser").style.display="block";
+   $("tfStatus").textContent=`⚠️ ${candidates.length} passende Fahrten gefunden – bitte auswählen.`;
+  }
+ }catch(e){
+  console.error(e);
+  $("tfStatus").textContent="⚠️ Fahrplandaten konnten nicht geladen werden.";
+  alert("Der Zuglauf konnte gerade nicht geladen werden. Bitte erneut versuchen.");
+ }
+}
+function closeTfTripChooser(){$("tfTripChooser").style.display="none"}
+async function chooseTfTrip(c){
+ closeTfTripChooser();
+ localStorage.setItem("tfTripSel:"+$("tfDate").value+":"+$("tfTrain").value.trim(),JSON.stringify(c));
+ await useSelectedTfTrip(c);
+}
+async function useSelectedTfTrip(c){
+ $("tfStatus").textContent="⏳ Lade ausgewählten Zuglauf …";
+ try{
+  const times=await apiGetRetry("stop_times?trip_id=eq."+encodeURIComponent(c.trip_id)+"&order=stop_sequence.asc");
+  if(!times?.length)throw new Error("Keine Halte gefunden");
   const ids=[...new Set(times.map(x=>x.stop_id).filter(Boolean))];let stops=[];
   for(let i=0;i<ids.length;i+=40){
    const q=ids.slice(i,i+40).map(x=>encodeURIComponent(x)).join(",");
-   stops=stops.concat(await apiGet("stops?stop_id=in.("+q+")&limit=100"));
+   stops=stops.concat(await apiGetRetry("stops?stop_id=in.("+q+")&limit=100"));
   }
   const byId=Object.fromEntries(stops.map(s=>[s.stop_id,s]));
-  tfData={trip,times,byId};
-  if(trip.trip_headsign)$("tfRoute").value=trip.trip_headsign;
+  tfData={trip:c,times,byId};
+  if(c.trip_headsign)$("tfRoute").value=c.trip_headsign;
   $("tfStops").innerHTML=times.map((t,i)=>{
-    const s=byId[t.stop_id]||{};
-    return `<div class="metric"><span><b>${i+1}. ${esc(s.stop_name||t.stop_id)}</b><br><span class="muted">Ankunft ${toTime(t.arrival_time)||"—"} · Abfahrt ${toTime(t.departure_time)||"—"}</span></span><span>Plan</span></div>`;
+   const s=byId[t.stop_id]||{};
+   return `<div class="metric"><span><b>${i+1}. ${esc(s.stop_name||t.stop_id)}</b><br><span class="muted">Ankunft ${toTime(t.arrival_time)||"—"} · Abfahrt ${toTime(t.departure_time)||"—"}</span></span><span>Plan</span></div>`;
   }).join("");
-  $("tfSummary").innerHTML=`<div class="metric"><span>Haltepunkte</span><b>${times.length}</b></div><div class="metric"><span>Ziel</span><b>${esc(trip.trip_headsign||"—")}</b></div><p class="muted">Echtzeit ist in dieser Version noch nicht automatisch angebunden.</p>`;
+  $("tfSummary").innerHTML=`<div class="metric"><span>Haltepunkte</span><b>${times.length}</b></div><div class="metric"><span>Ziel</span><b>${esc(c.last||c.trip_headsign||"—")}</b></div><p class="muted">Fahrt: ${esc(c.first||"—")} → ${esc(c.last||"—")}. Echtzeit ist in dieser Version noch nicht automatisch angebunden.</p>`;
   $("tfStatus").textContent=`✅ Zuglauf geladen · ${times.length} Haltepunkte`;
- }catch(e){console.error(e);$("tfStatus").textContent="⚠️ Zuglauf konnte nicht geladen werden."}
+ }catch(e){
+  console.error(e);
+  $("tfStatus").textContent="⚠️ Zuglauf konnte nicht geladen werden.";
+  alert("Die ausgewählte Fahrt konnte nicht vollständig geladen werden.");
+ }
 }
+
+
 function openDisruptions(){
- window.location.href="https://www.strecken.info/";
+ window.location.href="https://strecken-info.de/";
 }
 function openRailMap(){
  window.location.href="https://www.openrailwaymap.org/";
