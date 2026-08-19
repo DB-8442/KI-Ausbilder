@@ -1,3 +1,10 @@
 {
-"name":"LOKASSIST BR 8442","short_name":"LOKASSIST","start_url":"./","display":"standalone","background_color":"#f3f4f6","theme_color":"#111827","lang":"de","icons":[]
+  "name":"LOKASSIST – Dein digitaler Fahrbegleiter",
+  "short_name":"LOKASSIST",
+  "start_url":"./",
+  "display":"standalone",
+  "background_color":"#eef1f5",
+  "theme_color":"#172033",
+  "lang":"de",
+  "icons":[{"src":"lokassistent-logo.png","sizes":"1024x1024","type":"image/png","purpose":"any maskable"}]
 }
