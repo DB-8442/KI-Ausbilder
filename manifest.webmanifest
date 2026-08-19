@@ -4,7 +4,10 @@
   "start_url":"./",
   "display":"standalone",
   "background_color":"#eef1f5",
-  "theme_color":"#172033",
+  "theme_color":"#111a2c",
   "lang":"de",
-  "icons":[{"src":"lokassistent-logo.png","sizes":"1024x1024","type":"image/png","purpose":"any maskable"}]
+  "icons":[
+    {"src":"lokassistent-icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},
+    {"src":"apple-touch-icon-180.png","sizes":"180x180","type":"image/png","purpose":"any"}
+  ]
 }
