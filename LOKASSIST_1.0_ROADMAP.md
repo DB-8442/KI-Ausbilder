@@ -1,6 +1,7 @@
 # LOKASSIST 1.0 – Entwicklungsplan
 
 ## Status
+Milestone A: **Alpha 1 umgesetzt** – Branding, Kachelstartseite, Navigation und optionale persönliche Einstellungen.
 Aktuelle Basis: stabile Praxistest-Version 0.x (V5.4.1).
 Ziel: erste offiziell benannte Hauptversion LOKASSIST 1.0.
 

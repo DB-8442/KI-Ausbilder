@@ -5,43 +5,46 @@
 <meta name="theme-color" content="#111827"><link rel="manifest" href="manifest.webmanifest">
 <title>LOKASSIST</title>
 <style>
-:root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;color:#111827;background:#f3f4f6}
-*{box-sizing:border-box}body{margin:0;padding-bottom:82px}.app{max-width:720px;margin:auto}
-header{padding:22px 18px 10px;background:#111827;color:white;position:sticky;top:0;z-index:5}
-h1{margin:0;font-size:25px}.sub{opacity:.72;font-size:13px;margin-top:3px}
-main{padding:14px}.card{background:white;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 2px 12px #00000010}
-h2{font-size:18px;margin:0 0 12px}h3{font-size:15px;margin:16px 0 8px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-label{font-size:12px;font-weight:700;color:#4b5563}input,select,textarea{width:100%;margin-top:5px;padding:11px;border:1px solid #d1d5db;border-radius:11px;background:white;font:inherit}
-textarea{min-height:72px;resize:vertical}.full{grid-column:1/-1}
-button{border:0;border-radius:12px;padding:12px 14px;font-weight:700;font-size:15px;cursor:pointer}.primary{background:#111827;color:white}.secondary{background:#e5e7eb;color:#111827}.danger{background:#fee2e2;color:#991b1b}
-.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.skill{border-top:1px solid #eee;padding:10px 0}.skill:first-child{border-top:0}
-.skilltop{display:flex;justify-content:space-between;gap:8px;align-items:center}.skilltop strong{font-size:14px}
-.rate{display:flex;gap:5px;margin-top:7px}.rate button{padding:7px 9px;background:#f3f4f6;font-size:12px}.rate button.sel{outline:2px solid #111827}
+:root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;color:#172033;background:#eef1f5;--navy:#172033;--red:#d71920;--blue:#2456a6;--muted:#6b7280;--card:#fff}
+*{box-sizing:border-box}html{background:#eef1f5}body{margin:0;padding-bottom:92px;background:linear-gradient(180deg,#e9edf3 0,#f6f7f9 340px);min-height:100vh}.app{max-width:760px;margin:auto}
+header{padding:14px 16px 16px;background:linear-gradient(135deg,#111a2c,#202c43);color:#fff;position:sticky;top:0;z-index:5;box-shadow:0 4px 18px #0002}
+.brand{display:flex;align-items:center;gap:12px}.brand img{width:48px;height:48px;border-radius:14px;object-fit:cover;box-shadow:0 2px 10px #0005}.brand h1{margin:0;font-size:24px;letter-spacing:.2px}.brand .sub{opacity:.72;font-size:12px;margin-top:2px}
+main{padding:14px}.card{background:var(--card);border-radius:20px;padding:16px;margin:12px 0;box-shadow:0 3px 18px #11182712;border:1px solid #e6e9ee}
+h2{font-size:18px;margin:0 0 12px}h3{font-size:15px;margin:18px 0 8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{font-size:12px;font-weight:700;color:#4b5563}input,select,textarea{width:100%;margin-top:5px;padding:11px;border:1px solid #d1d5db;border-radius:12px;background:#fff;font:inherit}textarea{min-height:72px;resize:vertical}.full{grid-column:1/-1}
+button{border:0;border-radius:13px;padding:12px 14px;font-weight:750;font-size:14px;cursor:pointer;transition:transform .08s ease,box-shadow .12s ease}button:active{transform:scale(.98)}.primary{background:var(--navy);color:#fff;box-shadow:0 4px 10px #11182720}.secondary{background:#e8ecf2;color:#172033}.danger{background:#fee2e2;color:#991b1b}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.muted{color:var(--muted);font-size:13px}
+.hero{display:flex;align-items:center;gap:14px;padding:18px;background:linear-gradient(135deg,#fff,#f4f6fa);border:1px solid #e1e6ed}.hero img{width:72px;height:72px;border-radius:20px;object-fit:cover;box-shadow:0 5px 18px #0002}.hero h2{font-size:24px;margin:0 0 4px}.hero p{margin:0;color:#667085;font-size:13px}
+.tile-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.tile{position:relative;text-align:left;min-height:118px;padding:16px;background:#fff;border:1px solid #e4e8ee;border-radius:20px;box-shadow:0 3px 14px #11182710;display:flex;flex-direction:column;justify-content:space-between}.tile .icon{font-size:29px}.tile strong{font-size:15px}.tile small{font-size:12px;color:#6b7280;line-height:1.35}.tile.accent{background:linear-gradient(145deg,#fff,#f5f7fb)}.tile.disabled{opacity:.55;cursor:default}.tile.red{border-color:#f1c8ca}.tile.red .icon{color:var(--red)}
+.section-title{display:flex;align-items:center;justify-content:space-between;margin:18px 2px 8px}.section-title h2{margin:0;font-size:15px}
+.skill{border-top:1px solid #eee;padding:10px 0}.skill:first-child{border-top:0}.skilltop{display:flex;justify-content:space-between;gap:8px;align-items:center}.skilltop strong{font-size:14px}.rate{display:flex;gap:5px;margin-top:7px}.rate button{padding:7px 9px;background:#f3f4f6;font-size:12px}.rate button.sel{outline:2px solid #111827}
 .stop{border:1px solid #e5e7eb;border-radius:14px;padding:12px;margin:10px 0}.stophead{display:flex;justify-content:space-between;align-items:center}
-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #ddd;padding:8px env(safe-area-inset-right) calc(8px + env(safe-area-inset-bottom)) env(safe-area-inset-left);display:flex;justify-content:center;z-index:10}
-nav button{background:transparent;flex:1;max-width:180px;font-size:12px}.screen{display:none}.screen.active{display:block}
-.choice{display:block;width:100%;text-align:left;background:#f8fafc;border:1px solid #e5e7eb;margin:8px 0;padding:13px;border-radius:14px}.choice strong{display:block}.choice small{color:#6b7280}.metric{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #eee}.muted{color:#6b7280;font-size:13px}.protocol table{width:100%;border-collapse:collapse;font-size:13px}.protocol th,.protocol td{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:top}
-@media(max-width:480px){.grid{grid-template-columns:1fr}.full{grid-column:auto}}
-@media print{nav,.no-print,header{display:none!important}body{background:white;padding:0}.card{box-shadow:none;border:0}}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #dfe3e8;padding:7px max(8px,env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));display:flex;justify-content:center;z-index:10;box-shadow:0 -5px 18px #11182710}nav button{background:transparent;flex:1;max-width:150px;font-size:11px;color:#4b5563;padding:7px 4px}nav button:first-child{color:#172033}.screen{display:none}.screen.active{display:block}
+.choice{display:block;width:100%;text-align:left;background:#f8fafc;border:1px solid #e5e7eb;margin:8px 0;padding:13px;border-radius:14px}.choice strong{display:block}.choice small{color:#6b7280}.metric{display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid #eee}.protocol table{width:100%;border-collapse:collapse;font-size:13px}.protocol th,.protocol td{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:top}
+.feierabend{background:linear-gradient(135deg,#172033,#283a59);color:#fff}.feierabend small{color:#cdd6e5}.badge{display:inline-block;padding:5px 8px;border-radius:999px;background:#edf1f6;color:#526070;font-size:11px;font-weight:700}
+@media(max-width:480px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.tile-grid{gap:10px}.tile{min-height:112px;padding:14px}}
+@media print{nav,.no-print,header{display:none!important}body{background:#fff;padding:0}.card{box-shadow:none;border:0}}
 </style>
 </head>
 <body>
 <div class="app">
-<header><h1>🚂 LOKASSIST</h1><div class="sub">Praktische Ausbildung · BR 8442 · LOKASSIST 0.x</div></header>
+<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 1</div></div></div></header>
 
 <main>
 <section id="home" class="screen active">
-<div class="card"><h2>🚆 Tf-Modus</h2>
-<p class="muted">Für deine eigenen Fahrten: Zuglauf, Pünktlichkeit und aktuelle Infrastruktur-/Störungsinformationen.</p>
-<button class="primary" onclick="newTfRide()">＋ Meine Fahrt</button>
+<div class="card hero"><img src="lokassistent-logo.png" alt=""><div><h2>Willkommen bei LOKASSIST</h2><p>Sicher. Pünktlich. Entspannt.</p></div></div>
+<div class="section-title"><h2>Schnellzugriff</h2><span class="badge">1.0 Alpha 1</span></div>
+<div class="tile-grid">
+<button class="tile accent" onclick="newTfRide()"><span class="icon">🚆</span><span><strong>Meine Fahrt</strong><br><small>Zuglauf, Fahrplan & persönliche Notizen</small></span></button>
+<button class="tile accent" onclick="newRide()"><span class="icon">👨‍🏫</span><span><strong>Ausbilder</strong><br><small>Ausbildungsfahrt & Protokoll</small></span></button>
+<button class="tile" onclick="show('history');renderHistory()"><span class="icon">📋</span><span><strong>Meine Fahrten</strong><br><small>Gespeicherte Fahrten & Verlauf</small></span></button>
+<button class="tile" onclick="openDisruptions()"><span class="icon">🚨</span><span><strong>Störungen</strong><br><small>Strecken-Informationen öffnen</small></span></button>
+<button class="tile" onclick="openRailMap()"><span class="icon">🗺️</span><span><strong>Strecke</strong><br><small>OpenRailwayMap</small></span></button>
+<button class="tile" onclick="show('settings')"><span class="icon">⚙️</span><span><strong>Einstellungen</strong><br><small>Persönliche Daten & App</small></span></button>
+<button class="tile disabled" disabled><span class="icon">🚉</span><span><strong>Anschlüsse</strong><br><small>Kommt in LOKASSIST 1.0</small></span></button>
+<button class="tile feierabend" disabled><span class="icon">😎</span><span><strong>Feierabend</strong><br><small>Kommt mit dem Dienstmodell</small></span></button>
 </div>
-<div class="card"><h2>👨‍🏫 Ausbilder-Modus</h2>
-<p class="muted">Praktische Ausbildung mit Beobachtungen und Protokoll.</p>
-<button class="secondary" onclick="newRide()">＋ Ausbildungsfahrt</button>
-</div>
-<div class="card"><h2>Letzte Fahrten</h2><p class="muted">Schnellerfassung für den praktischen Ausbildungsalltag.</p><button class="primary" onclick="newRide()">＋ Neue Fahrt</button></div>
+<div class="section-title"><h2>Letzte Aktivitäten</h2></div>
 <div class="card"><h2>🚆 Meine Tf-Fahrten</h2><div id="tfRecent"></div></div>
 <div class="card"><h2>👨‍🏫 Letzte Ausbildungsfahrten</h2><div id="recent"></div></div>
 </section>
@@ -106,6 +109,14 @@ nav button{background:transparent;flex:1;max-width:180px;font-size:12px}.screen{
 <section id="settings" class="screen">
 <div class="card"><h2>⚙️ Einstellungen & Datenschutz</h2>
 <p class="muted">Die gespeicherten Ausbildungsdaten bleiben lokal in diesem Browser auf diesem Gerät. Diese Version sendet sie nicht an einen Server.</p>
+<h3>👤 Persönliche Angaben</h3>
+<p class="muted">Alle Angaben sind freiwillig und werden nur lokal auf diesem Gerät gespeichert. Sie können später für persönliche Nachweise/PDFs verwendet werden.</p>
+<div class="grid">
+<label>Name (optional)<input id="profileName" placeholder="Vor- und Nachname"></label>
+<label>Meldestelle (optional)<input id="profileOffice" placeholder="z. B. Stuttgart"></label>
+<label class="full">E-Mail (optional)<input id="profileEmail" type="email" placeholder="name@beispiel.de"></label>
+</div>
+<div class="actions"><button class="primary" onclick="saveProfile()">💾 Angaben speichern</button></div>
 <h3>🔒 App-Sperre</h3>
 <label>PIN (optional)<input id="pin" inputmode="numeric" maxlength="6" placeholder="4–6 Ziffern"></label>
 <div class="actions"><button class="primary" onclick="setPin()">PIN speichern</button><button class="secondary" onclick="removePin()">PIN entfernen</button></div>
@@ -116,7 +127,7 @@ nav button{background:transparent;flex:1;max-width:180px;font-size:12px}.screen{
 </div></section>
 </main>
 
-<nav><button onclick="show('home')">🏠<br>Start</button><button onclick="show('tf')">🚆<br>Tf</button><button onclick="show('ride')">👨‍🏫<br>Ausbilder</button><button onclick="show('history');renderHistory()">📊<br>Verlauf</button><button onclick="show('settings')">⚙️<br>Mehr</button></nav>
+<nav><button onclick="show('home')">🏠<br>Start</button><button onclick="newTfRide()">🚆<br>Meine Fahrt</button><button onclick="newRide()">👨‍🏫<br>Ausbilder</button><button onclick="show('history');renderHistory()">📋<br>Verlauf</button><button onclick="show('settings')">⚙️<br>Mehr</button></nav>
 </div>
 
 <script>
@@ -290,6 +301,18 @@ function loadRide(id){let x=JSON.parse(localStorage.getItem("rides")||"[]").find
 function renderHistory(){renderTfHistory();let a=JSON.parse(localStorage.getItem("rides")||"[]");$("historyList").innerHTML=a.map(x=>`<div class="metric"><span><b>${esc(x.trainee||"ohne Azubi")}</b><br>${esc(x.date)} · ${esc(x.train)} · ${esc(x.level)}</span><button class="secondary" onclick='loadRide(${JSON.stringify(x.id)})'>Öffnen</button></div>`).join("")||"<p class='muted'>Noch keine Daten.</p>"}
 
 function getRides(){return JSON.parse(localStorage.getItem("rides")||"[]")}
+function getProfile(){return JSON.parse(localStorage.getItem("lokassistentProfile")||"{}")}
+function loadProfile(){
+ const p=getProfile();
+ if($("profileName"))$("profileName").value=p.name||"";
+ if($("profileOffice"))$("profileOffice").value=p.office||"";
+ if($("profileEmail"))$("profileEmail").value=p.email||"";
+}
+function saveProfile(){
+ const p={name:$("profileName").value.trim(),office:$("profileOffice").value.trim(),email:$("profileEmail").value.trim()};
+ localStorage.setItem("lokassistentProfile",JSON.stringify(p));
+ alert("Persönliche Angaben gespeichert.");
+}
 function setPin(){
  const p=$("pin").value.trim();
  if(!/^\d{4,6}$/.test(p)){alert("Bitte eine PIN mit 4–6 Ziffern eingeben.");return}
@@ -357,7 +380,7 @@ function deleteTfRide(id){
  localStorage.setItem("tfRides",JSON.stringify(getTfRides().filter(r=>r.id!==id)));
  renderTfHistory();renderTfRecent();
 }
-buildSkills();addStop();renderRecent();renderTfRecent();renderTfHistory();
+buildSkills();addStop();renderRecent();renderTfRecent();renderTfHistory();loadProfile();
 if("serviceWorker" in navigator){
  navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(reg=>{
    reg.update().catch(()=>{});
