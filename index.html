@@ -32,12 +32,12 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid 
 </head>
 <body>
 <div class="app">
-<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 3 · Zuglauf-Fix</div></div></div></header>
+<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 4 · Zuglauf-Fix</div></div></div></header>
 
 <main>
 <section id="home" class="screen active">
 <div class="card hero"><img src="lokassistent-logo.png" alt=""><div><h2>Willkommen bei LOKASSIST</h2><p>Sicher. Pünktlich. Entspannt.</p></div></div>
-<div class="section-title"><h2>Schnellzugriff</h2><span class="badge">1.0 Alpha 3 · Zuglauf-Fix</span></div>
+<div class="section-title"><h2>Schnellzugriff</h2><span class="badge">1.0 Alpha 4 · Zuglauf-Fix</span></div>
 <div class="tile-grid">
 <button class="tile accent" onclick="newTfRide()"><span class="icon">🚆</span><span><strong>Meine Fahrt</strong><br><small>Zuglauf, Fahrplan & persönliche Notizen</small></span></button>
 <button class="tile accent" onclick="newRide()"><span class="icon">👨‍🏫</span><span><strong>Ausbilder</strong><br><small>Ausbildungsfahrt & Protokoll</small></span></button>
@@ -181,25 +181,29 @@ async function findTripsForNumber(train,date){
  const clean=String(train||"").trim();
  if(!clean) return [];
  $("trainStatus") && ($("trainStatus").textContent="⏳ Suche Zugnummer …");
- // 1) Nur einmal nach der Zugnummer suchen.
+
+ // The API contains the same train number in several regions/feeds.
+ // Never use an unverified global result: the selected date must be confirmed.
  const trips=await apiGetRetry("trips?trip_short_name=eq."+encodeURIComponent(clean)+"&limit=200");
  if(!Array.isArray(trips)||!trips.length)return [];
 
- // 2) Nur Fahrten berücksichtigen, die am gewählten Datum aktiv sind.
  const tripIds=[...new Set(trips.map(t=>t.trip_id).filter(Boolean))];
- let activeIds=null;
- try{
-  const q=tripIds.map(x=>encodeURIComponent(x)).join(",");
-  const days=await apiGetRetry("service_days?date=eq."+encodeURIComponent(date)+"&trip_id=in.("+q+")&limit=1000");
-  if(Array.isArray(days)&&days.length) activeIds=new Set(days.map(d=>d.trip_id).filter(Boolean));
- }catch(_){
-  // Falls service_days nicht verfügbar ist, lieber die Zugnummernsuche nicht blockieren.
- }
- const active=activeIds ? trips.filter(t=>activeIds.has(t.trip_id)) : trips;
+ const activeIds=new Set();
 
+ // Batch the service_days request so a long IN(...) URL cannot fail silently.
+ for(let i=0;i<tripIds.length;i+=40){
+  const batch=tripIds.slice(i,i+40);
+  const q=batch.map(x=>encodeURIComponent(x)).join(",");
+  const days=await apiGetRetry("service_days?date=eq."+encodeURIComponent(date)+"&trip_id=in.("+q+")&limit=200");
+  if(!Array.isArray(days))throw new Error("Ungültige service_days-Antwort");
+  for(const d of days)if(d.trip_id)activeIds.add(d.trip_id);
+ }
+
+ // Fail closed: if the date could not be verified, show no potentially wrong train.
+ const active=trips.filter(t=>activeIds.has(t.trip_id));
  if(!active.length)return [];
 
- // 3) Alle stop_times in EINEM/ wenigen Requests laden statt je Fahrt einzeln.
+ // Load stop_times in batches.
  const timesByTrip=new Map();
  for(let i=0;i<active.length;i+=40){
   const ids=active.slice(i,i+40).map(t=>t.trip_id);
@@ -211,7 +215,7 @@ async function findTripsForNumber(train,date){
   }
  }
 
- // 4) Stop-Namen gesammelt laden.
+ // Load stops incl. parent_station so platform variants do not become separate choices.
  const stopIds=[...new Set([...timesByTrip.values()].flat().map(t=>t.stop_id).filter(Boolean))];
  const stopsById={};
  for(let i=0;i<stopIds.length;i+=80){
@@ -220,7 +224,6 @@ async function findTripsForNumber(train,date){
   for(const s of (Array.isArray(ss)?ss:[]))stopsById[s.stop_id]=s;
  }
 
- // 5) Routen gesammelt laden.
  const routeIds=[...new Set(active.map(t=>t.route_id).filter(Boolean))];
  const routesById={};
  for(let i=0;i<routeIds.length;i+=80){
@@ -229,23 +232,25 @@ async function findTripsForNumber(train,date){
   for(const r of (Array.isArray(rs)?rs:[]))routesById[r.route_id]=r;
  }
 
- // 6) Kandidaten bilden und echte Dubletten entfernen.
  const candidates=[];
  const seen=new Set();
  for(const trip of active){
   const times=(timesByTrip.get(trip.trip_id)||[]).sort((a,b)=>(a.stop_sequence??0)-(b.stop_sequence??0));
   if(!times.length)continue;
-  const firstStop=stopsById[times[0].stop_id];
-  const lastStop=stopsById[times.at(-1).stop_id];
+
+  const firstRaw=stopsById[times[0].stop_id]||{};
+  const lastRaw=stopsById[times.at(-1).stop_id]||{};
+  const first=stopsById[firstRaw.parent_station]?.stop_name||firstRaw.stop_name||times[0].stop_id;
+  const last=stopsById[lastRaw.parent_station]?.stop_name||lastRaw.stop_name||times.at(-1).stop_id;
   const route=routesById[trip.route_id];
-  const first=firstStop?.stop_name||times[0].stop_id;
-  const last=lastStop?.stop_name||times.at(-1).stop_id;
   const departure=toTime(times[0].departure_time);
   const arrival=toTime(times.at(-1).arrival_time);
-  // Gleiche Zugnummer + gleicher Laufweg + gleiche Zeiten = gleiche Auswahl.
+
+  // Ignore platform/stop-id differences. Keep genuinely different start/end/time runs.
   const signature=[first,last,departure,arrival,trip.trip_headsign||"",route?.route_short_name||route?.route_long_name||""].join("|");
   if(seen.has(signature))continue;
   seen.add(signature);
+
   candidates.push({
    trip_id:trip.trip_id,
    trip_headsign:trip.trip_headsign||"",
@@ -277,8 +282,8 @@ async function loadTrainPlan(){
   else{showTripChooser(candidates);$("trainStatus").textContent=`⚠️ ${candidates.length} passende Fahrten gefunden – bitte auswählen.`}
  }catch(e){
   console.error(e);
-  $("trainStatus").textContent="⚠️ Fahrplandaten konnten nicht geladen werden.";
-  alert("Der Zuglauf konnte gerade nicht geladen werden. Bitte erneut versuchen.");
+  $("trainStatus").textContent="⚠️ Zugnummer konnte für dieses Datum nicht sicher geprüft werden.";
+  alert("Die Zugnummer konnte für das gewählte Datum gerade nicht sicher geprüft werden. Bitte erneut versuchen.");
  }
 }
 function showTripChooser(candidates){
