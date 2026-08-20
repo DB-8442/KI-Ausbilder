@@ -21,7 +21,7 @@ button{border:0;border-radius:13px;padding:12px 14px;font-weight:750;font-size:1
 .stop{border:1px solid #e5e7eb;border-radius:14px;padding:12px;margin:10px 0}.stophead{display:flex;justify-content:space-between;align-items:center}
 nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #dfe3e8;padding:7px max(8px,env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));display:flex;justify-content:center;z-index:10;box-shadow:0 -5px 18px #11182710}nav button{background:transparent;flex:1;max-width:150px;font-size:11px;color:#4b5563;padding:7px 4px}nav button:first-child{color:#172033}.screen{display:none}.screen.active{display:block}
 .choice{display:block;width:100%;text-align:left;background:#f8fafc;border:1px solid #e5e7eb;margin:8px 0;padding:13px;border-radius:14px}.choice strong{display:block}.choice small{color:#6b7280}.metric{display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid #eee}.protocol table{width:100%;border-collapse:collapse;font-size:13px}.protocol th,.protocol td{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:top}
-.feierabend{background:linear-gradient(135deg,#172033,#283a59);color:#fff}.feierabend small{color:#cdd6e5}.badge{display:inline-block;padding:5px 8px;border-radius:999px;background:#edf1f6;color:#526070;font-size:11px;font-weight:700}
+.feierabend{background:linear-gradient(135deg,#172033,#283a59);color:#fff}.feierabend small{color:#cdd6e5}.badge{display:inline-block;padding:5px 8px;border-radius:999px;background:#edf1f6;color:#526070;font-size:11px;font-weight:700}.readonly-note{padding:10px 12px;border-radius:12px;background:#eef2f7;color:#526070;font-size:13px;margin:8px 0}
 @media(max-width:480px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.tile-grid{gap:10px}.tile{min-height:112px;padding:14px}}
 @media print{nav,.no-print,header{display:none!important}body{background:#fff;padding:0}.card{box-shadow:none;border:0}}
 </style>
@@ -32,12 +32,12 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid 
 </head>
 <body>
 <div class="app">
-<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 8 · Milestone B1</div></div></div></header>
+<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 9 · Milestone A Fix</div></div></div></header>
 
 <main>
 <section id="home" class="screen active">
 <div class="card hero"><img src="lokassistent-logo.png" alt=""><div><h2>Willkommen bei LOKASSIST</h2><p>Sicher. Pünktlich. Entspannt.</p></div></div>
-<div class="section-title"><h2>Schnellzugriff</h2><span class="badge">1.0 Alpha 8 · Milestone B1</span></div>
+<div class="section-title"><h2>Schnellzugriff</h2><span class="badge">1.0 Alpha 9 · Milestone A Fix</span></div>
 <div class="tile-grid">
 <button class="tile accent" onclick="newTfRide()"><span class="icon">🚆</span><span><strong>Meine Fahrt</strong><br><small>Zuglauf, Fahrplan & persönliche Notizen</small></span></button>
 <button class="tile accent" onclick="newRide()"><span class="icon">👨‍🏫</span><span><strong>Ausbilder</strong><br><small>Ausbildungsfahrt & Protokoll</small></span></button>
@@ -61,7 +61,10 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid 
 <div id="tripChoices"></div><button class="secondary" onclick="closeTripChooser()">Abbrechen</button>
 </div></div>
 <section id="tf" class="screen">
-<div class="card"><h2>🚆 Meine Fahrt</h2>
+<div id="tfMainCard" class="card"><h2>🚆 Meine Fahrt</h2>
+<p id="tfEditHint" class="readonly-note" style="display:none"></p>
+<div id="tfReadonlyActions" class="actions" style="display:none"><button class="primary" onclick="setTfEditMode(true)">✏️ Bearbeiten</button></div>
+<div id="tfEditActions" class="actions" style="display:none"><button class="primary" onclick="saveTfRide(true)">💾 Änderungen speichern</button><button class="secondary" onclick="setTfEditMode(false)">↩️ Ansicht</button></div>
 <div class="card">
 <h2>🚆 Fahrzeuge</h2>
 <p class="muted">Bis zu 3 Fahrzeuge pro Fahrt · mehrere Baureihen möglich.</p>
@@ -330,10 +333,29 @@ function toTime(v){
 }
 
 let tfData=null;
+let tfEditMode=true;
+function setTfEditMode(enabled){
+ tfEditMode=!!enabled;
+ ["tfDate","tfTrain","tfVehicle","tfRoute","tfNotes"].forEach(id=>{if($(id))$(id).readOnly=!tfEditMode});
+ if($("tfEditActions"))$("tfEditActions").style.display=tfEditMode?"flex":"none";
+ if($("tfReadonlyActions"))$("tfReadonlyActions").style.display=tfEditMode?"none":"flex";
+ if($("tfEditHint")){$("tfEditHint").style.display=tfEditMode?"none":"block";$("tfEditHint").textContent=tfEditMode?"":"📋 Gespeicherte Fahrt – nur Ansicht";}
+}
+function renderSavedTfPlan(plan){
+ if(!plan||!Array.isArray(plan.stops)||!plan.stops.length){
+  $("tfStops").innerHTML="";
+  $("tfSummary").innerHTML="<p class='muted'>Für diese gespeicherte Fahrt wurde kein Zuglauf gespeichert.</p>";
+  return;
+ }
+ $("tfStops").innerHTML=plan.stops.map((s,i)=>`<div class="metric"><span><b>${i+1}. ${esc(s.name||"")}</b><br><span class="muted">Ankunft ${esc(s.pa||"—")} · Abfahrt ${esc(s.pd||"—")}</span></span><span>Plan</span></div>`).join("");
+ const first=plan.first||plan.stops[0].name||"—",last=plan.last||plan.stops.at(-1).name||"—";
+ $("tfSummary").innerHTML=`<div class="metric"><span>Haltepunkte</span><b>${plan.stops.length}</b></div><div class="metric"><span>Ziel</span><b>${esc(last)}</b></div><p class="muted">Gespeicherter Laufweg: ${esc(first)} → ${esc(last)}.</p>`;
+}
 function newTfRide(){
+ tfData=null;tfEditMode=true;
  $("tfDate").value=today();$("tfTrain").value="";$("tfVehicle").value="BR 8442";$("tfRoute").value="";
  $("tfNotes").value="";$("tfStops").innerHTML="";$("tfSummary").innerHTML="<p class='muted'>Zuglauf laden, um Halte und Sollzeiten zu sehen.</p>";$("tfStatus").textContent="";
- show("tf");
+ setTfEditMode(true);show("tf");
 }
 async function loadTfPlan(){
  const train=$("tfTrain").value.trim(),date=$("tfDate").value||today();
@@ -402,22 +424,16 @@ function openDisruptions(){
 function openRailMap(){
  window.location.href="https://www.openrailwaymap.org/";
 }
-function saveTfRide(){
- const d={id:crypto.randomUUID(),date:$("tfDate").value,train:$("tfTrain").value,vehicle:$("tfVehicle").value,route:$("tfRoute").value,notes:$("tfNotes").value,createdAt:new Date().toISOString()};
- const a=JSON.parse(localStorage.getItem("tfRides")||"[]");
- a.unshift(d);
- localStorage.setItem("tfRides",JSON.stringify(a));
- renderTfHistory();
- renderTfRecent();
- alert("Tf-Fahrt lokal gespeichert.");
- $("tfDate").value=today();
- $("tfTrain").value="";
- $("tfVehicle").value="BR 8442";
- $("tfRoute").value="";
- $("tfNotes").value="";
- $("tfStops").innerHTML="";
- $("tfSummary").innerHTML="<p class='muted'>Zuglauf laden, um Halte und Sollzeiten zu sehen.</p>";
- $("tfStatus").textContent="";
+function saveTfRide(fromEdit=false){
+ const plan=tfData?.times?.length?{
+  trip:tfData.trip||null,first:tfData.trip?.first||"",last:tfData.trip?.last||"",
+  stops:tfData.times.map(t=>({stop_id:t.stop_id||"",name:tfData.byId?.[t.stop_id]?.stop_name||t.stop_headsign||t.stop_id||"",pa:toTime(t.arrival_time),pd:toTime(t.departure_time)}))
+ }:(tfData?.savedPlan||null);
+ const d={id:tfData?.savedId||crypto.randomUUID(),date:$("tfDate").value,train:$("tfTrain").value,vehicle:$("tfVehicle").value,route:$("tfRoute").value,notes:$("tfNotes").value,plan,createdAt:tfData?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+ const a=getTfRides(),i=a.findIndex(x=>x.id===d.id);if(i>=0)a[i]=d;else a.unshift(d);
+ localStorage.setItem("tfRides",JSON.stringify(a));tfData={...(tfData||{}),savedId:d.id,createdAt:d.createdAt,savedPlan:plan};renderTfHistory();renderTfRecent();
+ if(fromEdit){alert("Änderungen gespeichert.");setTfEditMode(false);$("tfStatus").textContent="📋 Gespeicherte Fahrt aktualisiert."}
+ else{alert("Tf-Fahrt lokal gespeichert.");newTfRide()}
 }
 function resetRideForm(){
  current=null;$("date").value=today();
@@ -552,10 +568,10 @@ function renderTfHistory(){
  </div>`).join("") || "<p class='muted'>Noch keine eigenen Fahrten gespeichert.</p>";
 }
 function loadTfRide(id){
- const x=getTfRides().find(r=>r.id===id); if(!x)return;
- $("tfDate").value=x.date||today();$("tfTrain").value=x.train||"";$("tfVehicle").value=x.vehicle||"BR 8442";
- $("tfRoute").value=x.route||"";$("tfNotes").value=x.notes||"";$("tfStatus").textContent="📋 Gespeicherte Fahrt geladen.";
- show("tf");
+ const x=getTfRides().find(r=>r.id===id);if(!x)return;
+ $("tfDate").value=x.date||today();$("tfTrain").value=x.train||"";$("tfVehicle").value=x.vehicle||"BR 8442";$("tfRoute").value=x.route||"";$("tfNotes").value=x.notes||"";
+ tfData={savedId:x.id,createdAt:x.createdAt||new Date().toISOString(),savedPlan:x.plan||null};
+ renderSavedTfPlan(x.plan);setTfEditMode(false);$("tfStatus").textContent="📋 Gespeicherte Fahrt geladen.";show("tf");
 }
 function deleteTfRide(id){
  if(!confirm("Diese eigene Fahrt wirklich löschen?"))return;
