@@ -32,12 +32,12 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid 
 </head>
 <body>
 <div class="app">
-<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 9 · Milestone A Fix</div></div></div></header>
+<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 10 · Save/Edit + Fahrzeug-Fix</div></div></div></header>
 
 <main>
 <section id="home" class="screen active">
 <div class="card hero"><img src="lokassistent-logo.png" alt=""><div><h2>Willkommen bei LOKASSIST</h2><p>Sicher. Pünktlich. Entspannt.</p></div></div>
-<div class="section-title"><h2>Schnellzugriff</h2><span class="badge">1.0 Alpha 9 · Milestone A Fix</span></div>
+<div class="section-title"><h2>Schnellzugriff</h2><span class="badge">1.0 Alpha 10 · Save/Edit + Fahrzeug-Fix</span></div>
 <div class="tile-grid">
 <button class="tile accent" onclick="newTfRide()"><span class="icon">🚆</span><span><strong>Meine Fahrt</strong><br><small>Zuglauf, Fahrplan & persönliche Notizen</small></span></button>
 <button class="tile accent" onclick="newRide()"><span class="icon">👨‍🏫</span><span><strong>Ausbilder</strong><br><small>Ausbildungsfahrt & Protokoll</small></span></button>
@@ -337,7 +337,7 @@ let tfEditMode=true;
 function setTfEditMode(enabled){
  tfEditMode=!!enabled;
  ["tfDate","tfTrain","tfVehicle","tfRoute","tfNotes"].forEach(id=>{if($(id))$(id).readOnly=!tfEditMode});
- if($("tfEditActions"))$("tfEditActions").style.display=tfEditMode?"flex":"none";
+ if($("tfEditActions"))$("tfEditActions").style.display=(tfEditMode && tfData?.savedId)?"flex":"none";
  if($("tfReadonlyActions"))$("tfReadonlyActions").style.display=tfEditMode?"none":"flex";
  if($("tfEditHint")){$("tfEditHint").style.display=tfEditMode?"none":"block";$("tfEditHint").textContent=tfEditMode?"":"📋 Gespeicherte Fahrt – nur Ansicht";}
 }
@@ -454,6 +454,23 @@ function renderHistory(){renderTfHistory();let a=JSON.parse(localStorage.getItem
 function getRides(){return JSON.parse(localStorage.getItem("rides")||"[]")}
 
 const VEHICLE_KEY="lokassistentCurrentVehicles";
+function deriveVehicleType(br,number){
+ const n=String(number||"").trim();
+ if(br==="BR 8442"){
+  const first=n.charAt(0);
+  if(first==="1")return "3-teilig";
+  if(first==="2")return "4-teilig";
+  if(first==="3")return "5-teilig";
+ }
+ return "unbekannt";
+}
+function updateVehicleType(i){
+ const br=$("vbr"+i)?.value||"",number=$("vno"+i)?.value||"";
+ const type=deriveVehicleType(br,number),el=$("vtype"+i);
+ if(el){el.value=type;el.disabled=type==="unbekannt";}
+ const hint=$("vtypehint"+i);
+ if(hint)hint.textContent=type!=="unbekannt"?"Automatisch aus Fahrzeugnummer ermittelt":"Für diese Baureihe noch manuell/als unbekannt.";
+}
 function getVehicles(){try{return JSON.parse(localStorage.getItem(VEHICLE_KEY)||"[]")}catch(_){return []}}
 function renderVehicles(){
  const list=$("vehicleList"); if(!list)return;
@@ -461,17 +478,18 @@ function renderVehicles(){
  if(!v.length)v=[{br:"BR 8442",number:"",type:"3-teilig",position:"1"}];
  list.innerHTML=v.map((x,i)=>`<div class="card" style="margin:8px 0;padding:12px;background:#f8fafc">
   <div class="grid">
-   <label>Baureihe<select id="vbr${i}">
+   <label>Baureihe<select id="vbr${i}" onchange="updateVehicleType(${i})">
     <option value="">Bitte wählen</option>
     <option value="BR 8442" ${x.br==="BR 8442"?"selected":""}>BR 8442</option>
     <option value="Weitere Baureihe" ${x.br==="Weitere Baureihe"?"selected":""}>Weitere Baureihe</option>
    </select></label>
-   <label>Fahrzeugnummer<input id="vno${i}" inputmode="numeric" placeholder="z. B. 101" value="${esc(x.number||"")}"></label>
-   <label>Fahrzeugtyp<select id="vtype${i}">
+   <label>Fahrzeugnummer<input id="vno${i}" inputmode="numeric" oninput="updateVehicleType(${i})" placeholder="z. B. 101" value="${esc(x.number||"")}"></label>
+   <label>Fahrzeugtyp<select id="vtype${i}" disabled>
     <option ${x.type==="3-teilig"?"selected":""}>3-teilig</option>
+    <option ${x.type==="4-teilig"?"selected":""}>4-teilig</option>
     <option ${x.type==="5-teilig"?"selected":""}>5-teilig</option>
     <option ${x.type==="unbekannt"?"selected":""}>unbekannt</option>
-   </select></label>
+   </select><small id="vtypehint${i}" class="muted">Wird bei BR 8442 automatisch ermittelt.</small></label>
    <label>Position<select id="vpos${i}">
     <option value="1" ${String(x.position)==="1"?"selected":""}>1</option>
     <option value="2" ${String(x.position)==="2"?"selected":""}>2</option>
@@ -492,9 +510,10 @@ function removeVehicleRow(i){
  localStorage.setItem(VEHICLE_KEY,JSON.stringify(v));renderVehicles();
 }
 function saveVehicles(){
- const rows=[...document.querySelectorAll('[id^="vbr"]')].map((el,i)=>({
-  br:el.value,number:$("vno"+i)?.value.trim()||"",type:$("vtype"+i)?.value||"unbekannt",position:$("vpos"+i)?.value||String(i+1)
- })).filter(x=>x.br||x.number);
+ const rows=[...document.querySelectorAll('[id^="vbr"]')].map((el,i)=>{
+  const br=el.value,number=$("vno"+i)?.value.trim()||"",derived=deriveVehicleType(br,number);
+  return {br,number,type:derived!=="unbekannt"?derived:($("vtype"+i)?.value||"unbekannt"),position:$("vpos"+i)?.value||String(i+1)};
+ }).filter(x=>x.br||x.number);
  if(rows.length>3){alert("Maximal 3 Fahrzeuge.");return}
  localStorage.setItem(VEHICLE_KEY,JSON.stringify(rows));
  $("vehicleStatus").textContent=rows.length?`✅ ${rows.length} Fahrzeug${rows.length===1?"":"e"} übernommen.`:"Keine Fahrzeuge ausgewählt.";
