@@ -32,7 +32,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid 
 </head>
 <body>
 <div class="app">
-<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 10 · Save/Edit + Fahrzeug-Fix</div></div></div></header>
+<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 11 · Readonly Fix</div></div></div></header>
 
 <main>
 <section id="home" class="screen active">
@@ -95,7 +95,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid 
 <div class="card"><h2>📍 Zuglauf</h2><div id="tfStops"></div></div>
 <div class="card"><h2>📝 Persönliche Notizen</h2>
 <textarea id="tfNotes" placeholder="Nur für dich: Besonderheiten der Fahrt, Beobachtungen, Hinweise ..."></textarea>
-<div class="actions"><button class="primary" onclick="saveTfRide()">💾 Fahrt speichern</button></div>
+<div id="tfNewSaveActions" class="actions"><button class="primary" onclick="saveTfRide()">💾 Fahrt speichern</button></div>
 </div>
 </section>
 <section id="ride" class="screen">
@@ -336,10 +336,17 @@ let tfData=null;
 let tfEditMode=true;
 function setTfEditMode(enabled){
  tfEditMode=!!enabled;
- ["tfDate","tfTrain","tfVehicle","tfRoute","tfNotes"].forEach(id=>{if($(id))$(id).readOnly=!tfEditMode});
- if($("tfEditActions"))$("tfEditActions").style.display=(tfEditMode && tfData?.savedId)?"flex":"none";
+ const saved=!!tfData?.savedId;
+ document.querySelectorAll("#tfMainCard input, #tfMainCard textarea, #tfMainCard select, #tfMainCard button").forEach(el=>{
+  if(el.closest("#tfReadonlyActions")) return;
+  if(el.closest("#tfEditActions")){el.disabled=!tfEditMode;return;}
+  el.disabled=!tfEditMode;
+ });
+ if($("tfEditActions"))$("tfEditActions").style.display=(tfEditMode && saved)?"flex":"none";
  if($("tfReadonlyActions"))$("tfReadonlyActions").style.display=tfEditMode?"none":"flex";
- if($("tfEditHint")){$("tfEditHint").style.display=tfEditMode?"none":"block";$("tfEditHint").textContent=tfEditMode?"":"📋 Gespeicherte Fahrt – nur Ansicht";}
+ if($("tfNewSaveActions"))$("tfNewSaveActions").style.display=(!saved && tfEditMode)?"flex":"none";
+ if($("tfEditHint")){ $("tfEditHint").style.display=saved?"block":"none"; $("tfEditHint").textContent=saved?"📋 Gespeicherte Fahrt – nur Ansicht":""; }
+ if(typeof renderVehicles === "function") renderVehicles();
 }
 function renderSavedTfPlan(plan){
  if(!plan||!Array.isArray(plan.stops)||!plan.stops.length){
