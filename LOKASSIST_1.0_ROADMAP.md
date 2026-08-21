@@ -1,7 +1,9 @@
 # LOKASSIST 1.0 – Entwicklungsplan
 
 ## Status
-Milestone A: **Alpha 1 umgesetzt** – Branding, Kachelstartseite, Navigation und optionale persönliche Einstellungen.
+Milestone A: **abgeschlossen** – Fundament, Branding, Navigation, persönliche Einstellungen und Readonly-/Speicherlogik.
+Milestone B1: **abgeschlossen** – Fahrzeugmodell, automatische Bauart-Ermittlung bei BR 8442, bis zu 3 Fahrzeuge und Readonly-Fahrzeugschutz.
+Milestone B2: **in Arbeit (Alpha 16)** – Dienstmodell.
 Aktuelle Basis: stabile Praxistest-Version 0.x (V5.4.1).
 Ziel: erste offiziell benannte Hauptversion LOKASSIST 1.0.
 
@@ -23,7 +25,9 @@ Ziel: erste offiziell benannte Hauptversion LOKASSIST 1.0.
 
 ## Milestone B – Dienst & Fahrzeuge
 - Dienstmodell statt Kalendertag
+- Dienstbeginn/-abschluss (Feierabend)
 - Spät-/Nachtdienste über Mitternacht
+- mehrere Fahrten einem aktiven Dienst zuordnen
 - mehrere Fahrten pro Dienst
 - Fahrzeugverwaltung: Baureihe + Fahrzeugnummer + Bauart
 - bis zu 3 gekuppelte Fahrzeuge als Fahrzeugverband

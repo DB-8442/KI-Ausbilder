@@ -32,12 +32,13 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid 
 </head>
 <body>
 <div class="app">
-<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 15 · Vehicle Status Fix</div></div></div></header>
+<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 16 · Dienstmodell B2</div></div></div></header>
 
 <main>
 <section id="home" class="screen active">
 <div class="card hero"><img src="lokassistent-logo.png" alt=""><div><h2>Willkommen bei LOKASSIST</h2><p>Sicher. Pünktlich. Entspannt.</p></div></div>
-<div class="section-title"><h2>Schnellzugriff</h2><span class="badge">1.0 Alpha 10 · Save/Edit + Fahrzeug-Fix</span></div>
+<div class="card" id="homeServiceCard"><h2>🗓️ Aktueller Dienst</h2><div id="serviceHomeStatus" class="muted">Kein Dienst aktiv.</div><div class="grid" style="margin-top:10px"><label>Dienstbeginn Datum<input id="serviceDate" type="date"></label><label>Beginn<input id="serviceStart" type="time"></label></div><div class="actions"><button id="serviceStartBtn" class="primary" onclick="startService()">▶️ Dienst starten</button><button id="serviceFinishBtn" class="secondary" onclick="finishService()" style="display:none">😎 Feierabend</button></div><p class="muted">Ein Dienst kann über Mitternacht laufen. Alle Tf-Fahrten werden dem aktiven Dienst zugeordnet.</p></div>
+<div class="section-title"><h2>Schnellzugriff</h2><span class="badge">1.0 Alpha 16 · Dienstmodell</span></div>
 <div class="tile-grid">
 <button class="tile accent" onclick="newTfRide()"><span class="icon">🚆</span><span><strong>Meine Fahrt</strong><br><small>Zuglauf, Fahrplan & persönliche Notizen</small></span></button>
 <button class="tile accent" onclick="newRide()"><span class="icon">👨‍🏫</span><span><strong>Ausbilder</strong><br><small>Ausbildungsfahrt & Protokoll</small></span></button>
@@ -46,7 +47,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid 
 <button class="tile" onclick="openRailMap()"><span class="icon">🗺️</span><span><strong>Strecke</strong><br><small>OpenRailwayMap</small></span></button>
 <button class="tile" onclick="show('settings')"><span class="icon">⚙️</span><span><strong>Einstellungen</strong><br><small>Persönliche Daten & App</small></span></button>
 <button class="tile disabled" disabled><span class="icon">🚉</span><span><strong>Anschlüsse</strong><br><small>Kommt in LOKASSIST 1.0</small></span></button>
-<button class="tile feierabend" disabled><span class="icon">😎</span><span><strong>Feierabend</strong><br><small>Kommt mit dem Dienstmodell</small></span></button>
+<button class="tile feierabend" onclick="finishService()"><span class="icon">😎</span><span><strong>Feierabend</strong><br><small>Dienst beenden</small></span></button>
 </div>
 <div class="section-title"><h2>Letzte Aktivitäten</h2></div>
 <div class="card"><h2>🚆 Meine Tf-Fahrten</h2><div id="tfRecent"></div></div>
@@ -61,7 +62,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid 
 <div id="tripChoices"></div><button class="secondary" onclick="closeTripChooser()">Abbrechen</button>
 </div></div>
 <section id="tf" class="screen">
-<div id="tfMainCard" class="card"><h2>🚆 Meine Fahrt</h2>
+<div id="tfMainCard" class="card"><h2>🚆 Meine Fahrt</h2><div class="readonly-note" id="tfServiceStatus">Kein Dienst aktiv – Fahrt kann trotzdem separat gespeichert werden.</div>
 <p id="tfEditHint" class="readonly-note" style="display:none"></p>
 <div id="tfReadonlyActions" class="actions" style="display:none"><button class="primary" onclick="setTfEditMode(true)">✏️ Bearbeiten</button></div>
 <div id="tfEditActions" class="actions" style="display:none"><button class="primary" onclick="saveTfRide(true)">💾 Änderungen speichern</button><button class="secondary" onclick="setTfEditMode(false)">↩️ Ansicht</button></div>
@@ -364,9 +365,49 @@ function renderSavedTfPlan(plan){
  const first=plan.first||plan.stops[0].name||"—",last=plan.last||plan.stops.at(-1).name||"—";
  $("tfSummary").innerHTML=`<div class="metric"><span>Haltepunkte</span><b>${plan.stops.length}</b></div><div class="metric"><span>Ziel</span><b>${esc(last)}</b></div><p class="muted">Gespeicherter Laufweg: ${esc(first)} → ${esc(last)}.</p>`;
 }
+const SERVICE_KEY="lokassistentCurrentService";
+function getService(){try{return JSON.parse(localStorage.getItem(SERVICE_KEY)||"null")}catch(_){return null}}
+function pad2(n){return String(n).padStart(2,"0")}
+function nowTime(){const d=new Date();return pad2(d.getHours())+":"+pad2(d.getMinutes())}
+function formatService(s){
+ if(!s)return "Kein Dienst aktiv.";
+ if(s.status==="active") return `🟢 Dienst aktiv · ${esc(s.serviceDate||"—")} · Beginn ${esc(s.startTime||"—")}`;
+ return `⚪ Dienst beendet · ${esc(s.serviceDate||"—")} · ${esc(s.startTime||"—")} → ${esc(s.endDate||"—")} ${esc(s.endTime||"—")}`;
+}
+function renderService(){
+ const s=getService();
+ const home=$("serviceHomeStatus"), tf=$("tfServiceStatus");
+ if(home)home.innerHTML=formatService(s);
+ if(tf)tf.innerHTML=s&&s.status==="active"?`🟢 Aktiver Dienst · ${esc(s.serviceDate||"—")} · Beginn ${esc(s.startTime||"—")}`:`⚪ Kein aktiver Dienst – Fahrt kann trotzdem separat gespeichert werden.`;
+ const startBtn=$("serviceStartBtn"), finishBtn=$("serviceFinishBtn");
+ if(startBtn)startBtn.style.display=s&&s.status==="active"?"none":"inline-block";
+ if(finishBtn)finishBtn.style.display=s&&s.status==="active"?"inline-block":"none";
+ if($("serviceDate")&&!$("serviceDate").value)$("serviceDate").value=s?.serviceDate||today();
+ if($("serviceStart")&&!$("serviceStart").value)$("serviceStart").value=s?.startTime||nowTime();
+}
+function startService(){
+ const existing=getService();
+ if(existing?.status==="active"){alert("Es ist bereits ein Dienst aktiv.");return}
+ const service={id:crypto.randomUUID(),serviceDate:$('serviceDate').value||today(),startTime:$('serviceStart').value||nowTime(),status:"active",createdAt:new Date().toISOString()};
+ localStorage.setItem(SERVICE_KEY,JSON.stringify(service));
+ renderService();
+ if($('tfDate'))$('tfDate').value=service.serviceDate;
+ alert("Dienst gestartet.");
+}
+function finishService(){
+ const s=getService();
+ if(!s||s.status!=="active"){alert("Es ist kein aktiver Dienst vorhanden.");return}
+ if(!confirm("Feierabend drücken und den aktuellen Dienst beenden?"))return;
+ s.status="closed";s.endDate=today();s.endTime=nowTime();s.updatedAt=new Date().toISOString();
+ localStorage.setItem(SERVICE_KEY,JSON.stringify(s));
+ renderService();
+ alert("Feierabend. Dienst wurde beendet.");
+}
+
 function newTfRide(){
  tfData=null;tfEditMode=true;
- $("tfDate").value=today();$("tfTrain").value="";$("tfVehicle").value="BR 8442";$("tfRoute").value="";
+ const service=getService();
+ $("tfDate").value=service?.status==="active"?service.serviceDate:today();$("tfTrain").value="";$("tfVehicle").value="BR 8442";$("tfRoute").value="";
  $("tfNotes").value="";$("tfStops").innerHTML="";$("tfSummary").innerHTML="<p class='muted'>Zuglauf laden, um Halte und Sollzeiten zu sehen.</p>";$("tfStatus").textContent="";
  setTfEditMode(true);show("tf");
 }
@@ -442,7 +483,8 @@ function saveTfRide(fromEdit=false){
   trip:tfData.trip||null,first:tfData.trip?.first||"",last:tfData.trip?.last||"",
   stops:tfData.times.map(t=>({stop_id:t.stop_id||"",name:tfData.byId?.[t.stop_id]?.stop_name||t.stop_headsign||t.stop_id||"",pa:toTime(t.arrival_time),pd:toTime(t.departure_time)}))
  }:(tfData?.savedPlan||null);
- const d={id:tfData?.savedId||crypto.randomUUID(),date:$("tfDate").value,train:$("tfTrain").value,vehicle:$("tfVehicle").value,route:$("tfRoute").value,notes:$("tfNotes").value,plan,createdAt:tfData?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+ const activeService=getService();
+ const d={id:tfData?.savedId||crypto.randomUUID(),date:$("tfDate").value,train:$("tfTrain").value,vehicle:$("tfVehicle").value,route:$("tfRoute").value,notes:$("tfNotes").value,plan,serviceId:activeService?.status==="active"?activeService.id:(tfData?.serviceId||null),serviceDate:activeService?.status==="active"?activeService.serviceDate:(tfData?.serviceDate||$("tfDate").value),createdAt:tfData?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
  const a=getTfRides(),i=a.findIndex(x=>x.id===d.id);if(i>=0)a[i]=d;else a.unshift(d);
  localStorage.setItem("tfRides",JSON.stringify(a));tfData={...(tfData||{}),savedId:d.id,createdAt:d.createdAt,savedPlan:plan};renderTfHistory();renderTfRecent();
  if(fromEdit){alert("Änderungen gespeichert.");setTfEditMode(false);$("tfStatus").textContent="📋 Gespeicherte Fahrt aktualisiert."}
@@ -583,7 +625,7 @@ function renderTfRecent(){
  box.innerHTML=a.slice(0,5).map(x=>`
  <div class="metric">
   <span><b>${esc(x.date||"")}</b> · ${esc(x.train||"keine Zugnummer")}<br>
-  <span class="muted">${esc(x.route||"ohne Laufweg")} · ${esc(x.vehicle||"")}</span></span>
+  <span class="muted">${esc(x.route||"ohne Laufweg")} · ${esc(x.vehicle||"")}${x.serviceId?` · Dienst ${esc(x.serviceDate||x.date||"")}`:""}</span></span>
   <button class="secondary" onclick='loadTfRide(${JSON.stringify(x.id)})'>Öffnen</button>
  </div>`).join("") || "<p class='muted'>Noch keine eigenen Fahrten gespeichert.</p>";
 }
@@ -592,7 +634,7 @@ function renderTfHistory(){
  box.innerHTML=a.map(x=>`
  <div class="metric">
   <span><b>${esc(x.date||"")}</b> · ${esc(x.train||"keine Zugnummer")}<br>
-  <span class="muted">${esc(x.route||"ohne Laufweg")} · ${esc(x.vehicle||"")}</span></span>
+  <span class="muted">${esc(x.route||"ohne Laufweg")} · ${esc(x.vehicle||"")}${x.serviceId?` · Dienst ${esc(x.serviceDate||x.date||"")}`:""}</span></span>
   <span class="actions">
    <button class="secondary" onclick='loadTfRide(${JSON.stringify(x.id)})'>Öffnen</button>
    <button class="danger" onclick='deleteTfRide(${JSON.stringify(x.id)})'>Löschen</button>
@@ -602,7 +644,7 @@ function renderTfHistory(){
 function loadTfRide(id){
  const x=getTfRides().find(r=>r.id===id);if(!x)return;
  $("tfDate").value=x.date||today();$("tfTrain").value=x.train||"";$("tfVehicle").value=x.vehicle||"BR 8442";$("tfRoute").value=x.route||"";$("tfNotes").value=x.notes||"";
- tfData={savedId:x.id,createdAt:x.createdAt||new Date().toISOString(),savedPlan:x.plan||null};
+ tfData={savedId:x.id,createdAt:x.createdAt||new Date().toISOString(),savedPlan:x.plan||null,serviceId:x.serviceId||null,serviceDate:x.serviceDate||x.date||null};
  renderSavedTfPlan(x.plan);setTfEditMode(false);$("tfStatus").textContent="📋 Gespeicherte Fahrt geladen.";show("tf");
 }
 function deleteTfRide(id){
@@ -610,7 +652,7 @@ function deleteTfRide(id){
  localStorage.setItem("tfRides",JSON.stringify(getTfRides().filter(r=>r.id!==id)));
  renderTfHistory();renderTfRecent();
 }
-buildSkills();addStop();renderRecent();renderTfRecent();renderTfHistory();loadProfile();
+buildSkills();addStop();renderRecent();renderTfRecent();renderTfHistory();loadProfile();renderService();
 if("serviceWorker" in navigator){
  navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(reg=>{
    reg.update().catch(()=>{});

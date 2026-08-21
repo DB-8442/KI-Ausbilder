@@ -12,3 +12,7 @@
 - Leerzüge/Sonderfahrten erhalten eigene Logik
 - Feierabend ist zentraler Dienstabschluss
 - Sicherheit > Pünktlichkeit > Effizienz bei normalen Zugfahrten
+
+- Dienstmodell: aktiver Dienst mit eigenem Dienstdatum; kann über Mitternacht laufen
+- Mehrere Tf-Fahrten können einem aktiven Dienst zugeordnet werden
+- Feierabend beendet den aktiven Dienst
