@@ -69,7 +69,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid 
 <h2>🚆 Fahrzeuge</h2>
 <p class="muted">Bis zu 3 Fahrzeuge pro Fahrt · mehrere Baureihen möglich.</p>
 <div id="vehicleList"></div>
-<div class="actions">
+<div id="tfVehicleActions" class="actions">
 <button class="secondary" onclick="addVehicleRow()">➕ Fahrzeug hinzufügen</button>
 <button class="primary" onclick="saveVehicles()">💾 Fahrzeuge übernehmen</button>
 </div>
@@ -82,7 +82,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid 
 <label>Fahrzeug<input id="tfVehicle" value="BR 8442"></label>
 <label>Strecke / Laufweg<input id="tfRoute" placeholder="wird mit Zuglauf ergänzt"></label>
 </div>
-<div class="actions">
+<div id="tfPlanActions" class="actions">
 <button class="primary" onclick="loadTfPlan()">🚆 Zuglauf laden</button>
 <button class="secondary" onclick="openDisruptions()">🚨 Störungen</button>
 <button class="secondary" onclick="openRailMap()">🗺️ OpenRailwayMap</button>
@@ -337,16 +337,22 @@ let tfEditMode=true;
 function setTfEditMode(enabled){
  tfEditMode=!!enabled;
  ["tfDate","tfTrain","tfVehicle","tfRoute","tfNotes"].forEach(id=>{if($(id))$(id).readOnly=!tfEditMode});
+ if($("tfNotes"))$("tfNotes").disabled=!tfEditMode;
  if($("tfEditActions"))$("tfEditActions").style.display=(tfEditMode && tfData?.savedId)?"flex":"none";
  if($("tfReadonlyActions"))$("tfReadonlyActions").style.display=tfEditMode?"none":"flex";
- if($("tfEditHint")){$("tfEditHint").style.display=tfEditMode?"none":"block";$("tfEditHint").textContent=tfEditMode?"":"📋 Gespeicherte Fahrt – nur Ansicht";}
-
+ if($("tfNewSaveActions"))$("tfNewSaveActions").style.display=tfEditMode && !tfData?.savedId?"flex":"none";
+ if($("tfVehicleActions"))$("tfVehicleActions").style.display=tfEditMode?"flex":"none";
+ if($("tfPlanActions"))$("tfPlanActions").style.display=tfEditMode?"flex":"none";
+ if($("tfEditHint")){
+   $("tfEditHint").style.display=tfEditMode?"none":"block";
+   $("tfEditHint").textContent=tfEditMode?"":"📋 Gespeicherte Fahrt – nur Ansicht";
+ }
  const vehicleBox=document.querySelector("#vehicleList")?.closest(".card");
  if(vehicleBox){
-   vehicleBox.querySelectorAll("input, select, textarea, button").forEach(el=>el.disabled=!tfEditMode);
-   vehicleBox.querySelectorAll("button").forEach(el=>el.style.pointerEvents=tfEditMode?"":"none");
+   vehicleBox.querySelectorAll("input, select, textarea").forEach(el=>el.disabled=!tfEditMode);
  }
 }
+
 function renderSavedTfPlan(plan){
  if(!plan||!Array.isArray(plan.stops)||!plan.stops.length){
   $("tfStops").innerHTML="";
