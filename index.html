@@ -32,7 +32,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid 
 </head>
 <body>
 <div class="app">
-<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 12 · Readonly Vehicles</div></div></div></header>
+<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 14 · Readonly Vehicle Actions</div></div></div></header>
 
 <main>
 <section id="home" class="screen active">
@@ -350,6 +350,7 @@ function setTfEditMode(enabled){
  const vehicleBox=document.querySelector("#vehicleList")?.closest(".card");
  if(vehicleBox){
    vehicleBox.querySelectorAll("input, select, textarea").forEach(el=>el.disabled=!tfEditMode);
+   vehicleBox.querySelectorAll(".vehicle-remove-action").forEach(el=>el.style.display=tfEditMode?"flex":"none");
  }
 }
 
@@ -508,7 +509,7 @@ function renderVehicles(){
     <option value="3" ${String(x.position)==="3"?"selected":""}>3</option>
    </select></label>
   </div>
-  ${i>0?`<div class="actions"><button class="danger" onclick="removeVehicleRow(${i})">🗑️ Entfernen</button></div>`:""}
+  ${i>0?`<div class="actions vehicle-remove-action"><button class="danger" onclick="removeVehicleRow(${i})">🗑️ Entfernen</button></div>`:""}
  </div>`).join("");
 }
 function addVehicleRow(){
