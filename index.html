@@ -32,7 +32,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid 
 </head>
 <body>
 <div class="app">
-<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 14 · Readonly Vehicle Actions</div></div></div></header>
+<header><div class="brand"><img src="lokassistent-logo.png" alt="LOKASSIST Logo"><div><h1>LOKASSIST</h1><div class="sub">Dein digitaler Fahrbegleiter · 1.0 Alpha 15 · Vehicle Status Fix</div></div></div></header>
 
 <main>
 <section id="home" class="screen active">
@@ -529,7 +529,7 @@ function saveVehicles(){
  }).filter(x=>x.br||x.number);
  if(rows.length>3){alert("Maximal 3 Fahrzeuge.");return}
  localStorage.setItem(VEHICLE_KEY,JSON.stringify(rows));
- $("vehicleStatus").textContent=rows.length?`✅ ${rows.length} Fahrzeug${rows.length===1?"":"e"} übernommen.`:"Keine Fahrzeuge ausgewählt.";
+ $("vehicleStatus").textContent=rows.length?"✅ Fahrzeuge übernommen.":"Keine Fahrzeuge ausgewählt.";
 }
 function getProfile(){return JSON.parse(localStorage.getItem("lokassistentProfile")||"{}")}
 function loadProfile(){
